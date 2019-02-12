@@ -1,19 +1,25 @@
 ALL_SRC               := $(shell find . -name "*.go" | grep -v -e vendor)
 GOLANGCI_LINT_VERSION := 1.12.2
+SERVICE_NAME := cli
+MAIN_GO := main.go
 
-include ./semver.mk
+include ./mk-include/cc-begin.mk
+include ./mk-include/cc-semver.mk
+include ./mk-include/cc-protoc.mk
+include ./mk-include/cc-go.mk
+include ./mk-include/cc-end.mk
 
-.PHONY: deps
-deps:
-	@which goreleaser >/dev/null 2>&1 || go get github.com/goreleaser/goreleaser >/dev/null 2>&1
-	@(golangci-lint --version | grep $(GOLANGCI_LINT_VERSION)) >/dev/null 2>&1 || curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(GOPATH)/bin v$(GOLANGCI_LINT_VERSION) >/dev/null 2>&1
-	@GO111MODULE=on go mod download >/dev/null 2>&1
+CCLOUD_APIS := $(shell go list -f '{{ .Dir }}' -m github.com/confluentinc/ccloudapis)
 
-.PHONY: generate
-generate:
-	protoc shared/connect/*.proto -Ishared/connect -I$(GOPATH)/src -I$(GOPATH)/src/github.com/confluentinc/ccloudapis --gogo_out=plugins=grpc:shared/connect
-	protoc shared/kafka/*.proto -Ishared/kafka -I$(GOPATH)/src -I$(GOPATH)/src/github.com/confluentinc/ccloudapis --gogo_out=plugins=grpc:shared/kafka
-	protoc shared/ksql/*.proto -Ishared/ksql -I$(GOPATH)/src -I$(GOPATH)/src/github.com/confluentinc/ccloudapis --gogo_out=plugins=grpc:shared/ksql
+.PHONY: generate-protoc
+generate-protoc:
+	echo $(CCLOUD_APIS)
+	@which modvendor >/dev/null || go get github.com/goware/modvendor@latest >/dev/null
+	@go mod vendor  >/dev/null
+	@modvendor -copy="**/*.c **/*.h **/*.proto **/*.sh" -v  >/dev/null
+	protoc shared/kafka/*.proto -Ishared/kafka -I$(CCLOUD_APIS) --gogo_out=plugins=grpc:shared/kafka
+	protoc shared/connect/*.proto -Ishared/connect -I$(CCLOUD_APIS) --gogo_out=plugins=grpc:shared/connect
+	protoc shared/ksql/*.proto -Ishared/ksql -I$(CCLOUD_APIS) --gogo_out=plugins=grpc:shared/ksql
 
 .PHONY: install-plugins
 install-plugins:
@@ -27,44 +33,5 @@ endif
 
 .PHONY: binary
 binary:
+	@which goreleaser >/dev/null 2>&1 || go get github.com/goreleaser/goreleaser >/dev/null 2>&1
 	@GO111MODULE=on goreleaser release --snapshot --rm-dist -f $(GORELEASER_CONFIG)
-
-.PHONY: release
-release: get-release-image commit-release tag-release
-	echo '$(RELEASE_SVG)' > release.svg
-	git add release.svg
-	goreleaser
-
-.PHONY: fmt
-fmt:
-	@gofmt -e -s -l -w $(ALL_SRC)
-
-.PHONY: release-ci
-release-ci:
-ifeq ($(BRANCH_NAME),master)
-	make release
-else
-	true
-endif
-
-.PHONY: lint
-lint:
-	@GO111MODULE=on golangci-lint run
-
-.PHONY: coverage
-coverage:
-      ifdef CI
-	@echo "" > coverage.txt
-	@for d in $$(go list ./... | grep -v vendor); do \
-	  GO111MODULE=on go test -v -race -coverprofile=profile.out -covermode=atomic $$d || exit 2; \
-	  if [ -f profile.out ]; then \
-	    cat profile.out >> coverage.txt; \
-	    rm profile.out; \
-	  fi; \
-	done
-      else
-	@GO111MODULE=on go test -race -cover $(TEST_ARGS) ./...
-      endif
-
-.PHONY: test
-test: lint coverage
