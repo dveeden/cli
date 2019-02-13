@@ -83,12 +83,9 @@ require (
 	honnef.co/go/tools v0.0.0-20190128043916-71123fcbb8fe // indirect
 	k8s.io/api v0.0.0-20181221193117-173ce66c1e39 // indirect
 	k8s.io/apiextensions-apiserver v0.0.0-20190103235604-e7617803aceb // indirect
-	k8s.io/apimachinery v0.0.0-20190211211214-4b3b852955eb // indirect
+	k8s.io/apimachinery v0.0.0-20170925234155-3d8ee2261517 // indirect
 	k8s.io/kube-openapi v0.0.0-20181114233023-0317810137be // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
 
-replace (
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20171026124306-e509bb64fe11
-	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20170925234155-019ae5ada31d
-)
+replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20171026124306-e509bb64fe11

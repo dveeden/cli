@@ -455,6 +455,8 @@ k8s.io/apiextensions-apiserver v0.0.0-20171026124306-e509bb64fe11 h1:/art/+Yws7C
 k8s.io/apiextensions-apiserver v0.0.0-20171026124306-e509bb64fe11/go.mod h1:IxkesAMoaCRoLrPJdZNZUQp9NfZnzqaVzLhb2VEQzXE=
 k8s.io/apimachinery v0.0.0-20170925234155-019ae5ada31d h1:gXwq2kt3QZPmEOAfKymCqSg04DCc7fchlPqUmZ2tTn8=
 k8s.io/apimachinery v0.0.0-20170925234155-019ae5ada31d/go.mod h1:ccL7Eh7zubPUSh9A3USN90/OzHNSVN6zxzde07TDCL0=
+k8s.io/apimachinery v0.0.0-20170925234155-3d8ee2261517 h1:oWsEELR7IKCB4bd6sunWMWEoomviHigQbEvw9Ft+l0I=
+k8s.io/apimachinery v0.0.0-20170925234155-3d8ee2261517/go.mod h1:ccL7Eh7zubPUSh9A3USN90/OzHNSVN6zxzde07TDCL0=
 k8s.io/klog v0.0.0-20181108234604-8139d8cb77af/go.mod h1:Gq+BEi5rUBO/HRz0bTSXDUcqjScdoY3a9IHpCEIOOfk=
 k8s.io/kube-openapi v0.0.0-20181109181836-c59034cc13d5 h1:MH8SvyTlIiLt8b1oHy4Dtp1zPpLGp6lTOjvfzPTkoQE=
 k8s.io/kube-openapi v0.0.0-20181109181836-c59034cc13d5/go.mod h1:BXM9ceUBTj2QnfH2MK1odQs778ajze1RxcmP6S8RVVc=
