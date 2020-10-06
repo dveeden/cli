@@ -111,6 +111,10 @@ func (c *Commander) HasAPIKey(command *cmd.HasAPIKeyCLICommand) func(cmd *cobra.
 	}
 }
 
+func (c *Commander) SetStateValues(cmd *cmd.AuthenticatedStateFlagCommand) func(*cobra.Command, []string) error {
+	panic("implement me")
+}
+
 func (c *Commander) setClient(command *cmd.AuthenticatedCLICommand) {
 	command.Client = c.Client
 	command.MDSClient = c.MDSClient

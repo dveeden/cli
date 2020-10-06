@@ -60,7 +60,7 @@ const (
 )
 
 type clusterCommand struct {
-	*pcmd.AuthenticatedCLICommand
+	*pcmd.AuthenticatedStateFlagCommand
 	prerunner pcmd.PreRunner
 }
 
@@ -84,13 +84,13 @@ type describeStruct struct {
 
 // NewClusterCommand returns the Cobra command for Kafka cluster.
 func NewClusterCommand(prerunner pcmd.PreRunner) *cobra.Command {
-	cliCmd := pcmd.NewAuthenticatedCLICommand(
+	cliCmd := pcmd.NewAuthenticatedStateFlagCommand(
 		&cobra.Command{
 			Use:   "cluster",
 			Short: "Manage Kafka clusters.",
 		}, prerunner)
 	cmd := &clusterCommand{
-		AuthenticatedCLICommand: cliCmd,
+		AuthenticatedStateFlagCommand: cliCmd,
 		prerunner:               prerunner,
 	}
 	cmd.init()
@@ -123,7 +123,7 @@ func (c *clusterCommand) init() {
 			},
 		),
 	}
-
+	stateFlagMethod(createCmd)
 	createCmd.Flags().String("cloud", "", "Cloud provider ID (e.g. 'aws' or 'gcp').")
 	createCmd.Flags().String("region", "", "Cloud region ID for cluster (e.g. 'us-west-2').")
 	check(createCmd.MarkFlagRequired("cloud"))

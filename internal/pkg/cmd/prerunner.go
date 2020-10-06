@@ -15,6 +15,7 @@ import (
 
 	"github.com/confluentinc/cli/internal/pkg/analytics"
 	pauth "github.com/confluentinc/cli/internal/pkg/auth"
+	v1 "github.com/confluentinc/cli/internal/pkg/config/v1"
 	v2 "github.com/confluentinc/cli/internal/pkg/config/v2"
 	v3 "github.com/confluentinc/cli/internal/pkg/config/v3"
 	"github.com/confluentinc/cli/internal/pkg/errors"
@@ -29,6 +30,7 @@ type PreRunner interface {
 	Authenticated(command *AuthenticatedCLICommand) func(cmd *cobra.Command, args []string) error
 	AuthenticatedWithMDS(command *AuthenticatedCLICommand) func(cmd *cobra.Command, args []string) error
 	HasAPIKey(command *HasAPIKeyCLICommand) func(cmd *cobra.Command, args []string) error
+	SetStateValues(cmd *AuthenticatedStateFlagCommand) func(*cobra.Command, []string) error
 }
 
 // PreRun is the standard PreRunner implementation
@@ -66,12 +68,37 @@ type HasAPIKeyCLICommand struct {
 	Context *DynamicContext
 }
 
+type AuthenticatedStateFlagCommand struct {
+	*AuthenticatedCLICommand
+	EnvId		string
+	Cluster		*v1.KafkaClusterConfig
+}
+
 func (a *AuthenticatedCLICommand) AuthToken() string {
 	return a.State.AuthToken
 }
 
 func (a *AuthenticatedCLICommand) EnvironmentId() string {
 	return a.State.Auth.Account.Id
+}
+
+func (s *AuthenticatedStateFlagCommand) EnvironmentId() string {
+	if s.EnvId != "" {
+		return s.EnvId
+	}
+	return s.AuthenticatedCLICommand.EnvironmentId()
+}
+
+func NewAuthenticatedStateFlagCommand(command *cobra.Command, prerunner PreRunner) *AuthenticatedStateFlagCommand {
+	cmd := &AuthenticatedStateFlagCommand{
+		NewAuthenticatedCLICommand(command, prerunner),
+		"",
+		nil,
+	}
+	command.PersistentFlags().String("cluster", "", "Kafka cluster ID.")
+	command.PersistentFlags().String("environment", "", "Environment ID.")
+	command.PersistentPreRunE = NewCLIPreRunnerE(prerunner.SetStateValues(cmd))
+	return cmd
 }
 
 func NewAuthenticatedCLICommand(command *cobra.Command, prerunner PreRunner) *AuthenticatedCLICommand {
@@ -296,6 +323,35 @@ func (r *PreRun) HasAPIKey(command *HasAPIKeyCLICommand) func(cmd *cobra.Command
 			err = &errors.UnspecifiedAPIKeyError{ClusterID: clusterId}
 			return err
 		}
+		return nil
+	}
+}
+
+func (r *PreRun) SetStateValues(stateFlagCmd *AuthenticatedStateFlagCommand) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		err := r.Authenticated(stateFlagCmd.AuthenticatedCLICommand)(cmd, args)
+		if err != nil {
+			return err
+		}
+		stateFlagCmd.Config.Config = r.Config
+		stateFlagCmd.Version = r.Version
+		stateFlagCmd.Config.Resolver = r.FlagResolver
+		envId, err := r.FlagResolver.ResolveEnvironmentFlag(cmd)
+		if err != nil {
+			return err
+		}
+		if envId != "" {
+			stateFlagCmd.EnvId = envId
+		}
+		ctx, err := stateFlagCmd.Config.Context(cmd)
+		if err != nil {
+			return err
+		}
+		cluster, err := ctx.GetKafkaClusterForCommand(cmd)
+		if err != nil {
+			return err
+		}
+		stateFlagCmd.Cluster = cluster
 		return nil
 	}
 }
