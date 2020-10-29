@@ -152,7 +152,7 @@ func (c *Config) Save() error {
 		return errors.Wrapf(err, errors.CreateConfigFileErrorMsg, filename)
 	}
 	if tempSet {
-		c.Context().State.Auth.Account = temp
+		ctx.State.Auth.Account = temp
 	}
 	return nil
 }
