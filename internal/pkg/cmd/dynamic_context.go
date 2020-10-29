@@ -3,11 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/mohae/deepcopy"
 	"strings"
 
 	schedv1 "github.com/confluentinc/cc-structs/kafka/scheduler/v1"
 	"github.com/confluentinc/ccloud-sdk-go"
-	"github.com/mohae/deepcopy"
 	"github.com/spf13/cobra"
 
 	v0 "github.com/confluentinc/cli/internal/pkg/config/v0"
@@ -59,7 +59,11 @@ func (d *DynamicContext) getKafkaClusterIDForCommand(cmd *cobra.Command) (string
 }
 
 func (d *DynamicContext) FindKafkaCluster(cmd *cobra.Command, clusterId string) (*v1.KafkaClusterConfig, error) {
-	if cluster := d.KafkaClusterContext.GetKafkaClusterConfig(clusterId); cluster != nil {
+	envId, err := d.resolveEnvironmentId(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if cluster := d.KafkaClusterContext.GetKafkaClusterConfig(clusterId, envId); cluster != nil {
 		return cluster, nil
 	}
 	if d.client == nil {
@@ -78,7 +82,7 @@ func (d *DynamicContext) FindKafkaCluster(cmd *cobra.Command, clusterId string) 
 		APIEndpoint: kcc.ApiEndpoint,
 		APIKeys:     make(map[string]*v0.APIKeyPair),
 	}
-	d.KafkaClusterContext.AddKafkaClusterConfig(cluster)
+	d.KafkaClusterContext.AddKafkaClusterConfig(cluster, envId)
 	err = d.Save()
 	if err != nil {
 		return nil, err
@@ -208,6 +212,7 @@ func (d *DynamicContext) AuthenticatedEnvId(cmd *cobra.Command) (string, error) 
 // A view of the state is returned, rather than a pointer to the actual state. Changing the state
 // should be done by accessing the state field directly.
 func (d *DynamicContext) AuthenticatedState(cmd *cobra.Command) (*v2.ContextState, error) {
+	fmt.Println("in authenticated state")
 	hasLogin, err := d.HasLogin(cmd)
 	if err != nil {
 		return nil, err
@@ -216,6 +221,7 @@ func (d *DynamicContext) AuthenticatedState(cmd *cobra.Command) (*v2.ContextStat
 		return nil, &errors.NotLoggedInError{CLIName: d.Config.CLIName}
 	}
 	envId, err := d.resolveEnvironmentId(cmd)
+	fmt.Println("env id from flag: "+envId)
 	if err != nil {
 		return nil, err
 	}
@@ -225,9 +231,12 @@ func (d *DynamicContext) AuthenticatedState(cmd *cobra.Command) (*v2.ContextStat
 	state := deepcopy.Copy(d.State).(*v2.ContextState)
 	for _, account := range d.State.Auth.Accounts {
 		if account.Id == envId {
+			fmt.Println("found account")
 			state.Auth.Account = account
 		}
 	}
+	fmt.Println("yur")
+	fmt.Println(d.State.Auth.Account.Id)
 	return state, nil
 }
 
@@ -244,9 +253,34 @@ func (d *DynamicContext) CheckSchemaRegistryHasAPIKey(cmd *cobra.Command) (bool,
 	if err != nil {
 		return false, nil
 	}
-	return !(srCluster.SrCredentials == nil || len(srCluster.SrCredentials.Key) == 0 || len(srCluster.SrCredentials.Secret) == 0), nil
+	key, secret, err := d.KeyAndSecretFlags(cmd)
+	if err != nil {
+		return false, err
+	}
+	if key != "" {
+		if srCluster.SrCredentials == nil {
+			srCluster.SrCredentials = &v0.APIKeyPair{}
+		}
+		srCluster.SrCredentials.Key = key
+	}
+	if secret != "" {
+		srCluster.SrCredentials.Secret = secret
+	}
+	return !(srCluster.SrCredentials == nil || (len(srCluster.SrCredentials.Key) == 0) || len(srCluster.SrCredentials.Secret) == 0), nil
 }
 
+func (d *DynamicContext) KeyAndSecretFlags(cmd *cobra.Command) (string, string, error) {
+	// TODO return error if secret is passed without key
+	key, err := d.resolver.ResolveApiKeyFlag(cmd)
+	if err != nil {
+		return "", "", err
+	}
+	secret, err := d.resolver.ResolveApiKeySecretFlag(cmd)
+	if err != nil {
+		return "", "", err
+	}
+	return key, secret, nil
+}
 func (d *DynamicContext) resolveEnvironmentId(cmd *cobra.Command) (string, error) {
 	envId, err := d.resolver.ResolveEnvironmentFlag(cmd)
 	if err != nil {

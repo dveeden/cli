@@ -23,6 +23,7 @@ func NewContextClient(ctx *DynamicContext) *contextClient {
 
 func (c *contextClient) FetchCluster(cmd *cobra.Command, clusterId string) (*schedv1.KafkaCluster, error) {
 	envId, err := c.context.AuthenticatedEnvId(cmd)
+	fmt.Println(envId)
 	if err != nil {
 		return nil, err
 	}

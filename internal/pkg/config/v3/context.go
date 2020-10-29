@@ -158,6 +158,9 @@ func (c *Context) GetCurrentEnvironmentId() string {
 	if c.State.Auth == nil {
 		return ""
 	}
+	fmt.Println("context state")
+	fmt.Println(c.State.Auth.Account.Id)
+	fmt.Println(c.State)
 	return c.State.Auth.Account.Id
 }
 

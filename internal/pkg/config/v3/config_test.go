@@ -742,7 +742,7 @@ func TestKafkaClusterContext_AddAndGetKafkaClusterConfig(t *testing.T) {
 		testInputs := SetupTestInputs(cliName)
 		kafkaClusterContext := testInputs.statefulConfig.Context().KafkaClusterContext
 		kafkaClusterContext.AddKafkaClusterConfig(kcc)
-		reflect.DeepEqual(kcc, kafkaClusterContext.GetKafkaClusterConfig(clusterID))
+		reflect.DeepEqual(kcc, kafkaClusterContext.GetKafkaClusterConfig(clusterID, ""))
 	}
 }
 
@@ -768,7 +768,7 @@ func TestKafkaClusterContext_DeleteAPIKey(t *testing.T) {
 		kafkaClusterContext.AddKafkaClusterConfig(kcc)
 
 		kafkaClusterContext.DeleteAPIKey(apiKey)
-		kcc := kafkaClusterContext.GetKafkaClusterConfig(clusterID)
+		kcc := kafkaClusterContext.GetKafkaClusterConfig(clusterID, "")
 		if _, ok := kcc.APIKeys[apiKey]; ok {
 			t.Errorf("DeleteAPIKey did not delete the API key.")
 		}

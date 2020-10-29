@@ -95,6 +95,17 @@ func (suite *ClusterTestSuite) newCMD() *cobra.Command {
 	return cmd
 }
 
+func (suite *ClusterTestSuite) newNoApiKeyCMD() *cobra.Command {
+	client := &ccloud.Client{
+		SchemaRegistry: suite.srMock,
+		Metrics:        suite.metrics,
+	}
+	config := v3.AuthenticatedCloudConfigMock()
+	config.Context().SchemaRegistryClusters["testAccount"].SrCredentials = nil
+	cmd := New("ccloud", cliMock.NewPreRunnerMock(client, nil, config), suite.srClientMock, suite.logger)
+	return cmd
+}
+
 func (suite *ClusterTestSuite) TestCreateSR() {
 	cmd := suite.newCMD()
 	cmd.SetArgs(append([]string{"cluster", "enable", "--cloud", "aws", "--geo", "us"}))
@@ -146,6 +157,20 @@ func (suite *ClusterTestSuite) TestUpdateNoArgs() {
 	err := cmd.Execute()
 	req := require.New(suite.T())
 	req.Error(err, "flag string not set")
+}
+
+func (suite *ClusterTestSuite) TestApiKeyFlags() {
+	cmd := suite.newNoApiKeyCMD()
+	cmd.SetArgs(append([]string{"cluster", "update", "--mode", "READWRITE", "--api-key", "michael", "--api-secret", "scott"}))
+	err := cmd.Execute()
+	req := require.New(suite.T())
+	req.Nil(err)
+
+	cmd = suite.newNoApiKeyCMD()
+	cmd.SetArgs(append([]string{"cluster", "describe", "--api-key", "michael", "--api-secret", "scott"}))
+	err = cmd.Execute()
+	req = require.New(suite.T())
+	req.Nil(err)
 }
 
 func TestClusterTestSuite(t *testing.T) {

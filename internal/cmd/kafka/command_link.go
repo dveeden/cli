@@ -33,20 +33,20 @@ type keyValueDisplay struct {
 }
 
 type linkCommand struct {
-	*pcmd.AuthenticatedCLICommand
+	*pcmd.AuthenticatedStateFlagCommand
 	prerunner pcmd.PreRunner
 }
 
 func NewLinkCommand(prerunner pcmd.PreRunner) *cobra.Command {
-	cliCmd := pcmd.NewAuthenticatedCLICommand(
+	cliCmd := pcmd.NewAuthenticatedStateFlagCommand(
 		&cobra.Command{
 			Use:    "link",
 			Hidden: true,
 			Short:  "Manages inter-cluster links.",
 		},
-		prerunner)
+		prerunner, LinkSubcommandStateFlags)
 	cmd := &linkCommand{
-		AuthenticatedCLICommand: cliCmd,
+		AuthenticatedStateFlagCommand: cliCmd,
 		prerunner:               prerunner,
 	}
 	cmd.init()
@@ -54,8 +54,6 @@ func NewLinkCommand(prerunner pcmd.PreRunner) *cobra.Command {
 }
 
 func (c *linkCommand) init() {
-	c.Command.PersistentFlags().String("cluster", "", "Kafka cluster ID.")
-
 	listCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List previously created cluster links.",

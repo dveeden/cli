@@ -10,13 +10,12 @@ import (
 
 	productv1 "github.com/confluentinc/cc-structs/kafka/product/core/v1"
 	schedv1 "github.com/confluentinc/cc-structs/kafka/scheduler/v1"
-	"github.com/spf13/cobra"
-
 	pcmd "github.com/confluentinc/cli/internal/pkg/cmd"
 	"github.com/confluentinc/cli/internal/pkg/errors"
 	"github.com/confluentinc/cli/internal/pkg/examples"
 	"github.com/confluentinc/cli/internal/pkg/form"
 	"github.com/confluentinc/cli/internal/pkg/output"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -88,7 +87,7 @@ func NewClusterCommand(prerunner pcmd.PreRunner) *cobra.Command {
 		&cobra.Command{
 			Use:   "cluster",
 			Short: "Manage Kafka clusters.",
-		}, prerunner)
+		}, prerunner, ClusterCloudSubcommandStateFlags)
 	cmd := &clusterCommand{
 		AuthenticatedStateFlagCommand: cliCmd,
 		prerunner:               prerunner,
@@ -123,7 +122,6 @@ func (c *clusterCommand) init() {
 			},
 		),
 	}
-	stateFlagMethod(createCmd)
 	createCmd.Flags().String("cloud", "", "Cloud provider ID (e.g. 'aws' or 'gcp').")
 	createCmd.Flags().String("region", "", "Cloud region ID for cluster (e.g. 'us-west-2').")
 	check(createCmd.MarkFlagRequired("cloud"))

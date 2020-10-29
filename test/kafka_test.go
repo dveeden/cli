@@ -8,6 +8,7 @@ func (s *CLITestSuite) TestKafka() {
 		{args: "kafka cluster list", fixture: "kafka/6.golden"},
 		{args: "kafka cluster list -o json", fixture: "kafka/7.golden"},
 		{args: "kafka cluster list -o yaml", fixture: "kafka/8.golden"},
+		{args: "kafka cluster list --environment not-595", fixture: "kafka/46.golden"},
 
 		{args: "kafka cluster create", fixture: "kafka/1.golden", wantErrCode: 1},
 		{args: "kafka cluster create my-new-cluster --cloud aws --region us-east-1 --availability single-zone", fixture: "kafka/2.golden"},
@@ -19,6 +20,9 @@ func (s *CLITestSuite) TestKafka() {
 		{args: "kafka cluster create my-new-cluster --cloud aws --region us-east-1 --availability single-zone -o json", fixture: "kafka/23.golden"},
 		{args: "kafka cluster create my-new-cluster --cloud aws --region us-east-1 --availability single-zone -o yaml", fixture: "kafka/24.golden"},
 		{args: "kafka cluster create my-new-cluster --cloud aws --region us-east-1 --availability oops-zone", fixture: "kafka/kafka-availability-zone-error.golden", wantErrCode: 1},
+		{args: "kafka cluster create new-cluster-in-other-env --cloud aws --region us-east-1 --availability single-zone --environment not-595", fixture: "kafka/41.golden"},
+		{args: "kafka cluster create new-cluster-in-other-env1 --cloud aws --region us-east-1 --availability single-zone --environment bad-env", fixture: "kafka/42.golden", wantErrCode: 1},
+		{args: "kafka cluster create new-cluster-in-other-env1 --cloud aws --region us-east-1 --availability single-zone --environment not-595", fixture: "kafka/43.golden"},
 
 		{args: "kafka cluster update lkc-update ", fixture: "kafka/kafka-create-flag-error.golden", wantErrCode: 1},
 		{args: "kafka cluster update lkc-update --name lkc-update-name", fixture: "kafka/26.golden"},
@@ -31,6 +35,7 @@ func (s *CLITestSuite) TestKafka() {
 		{args: "kafka cluster delete", fixture: "kafka/3.golden", wantErrCode: 1},
 		{args: "kafka cluster delete lkc-unknown", fixture: "kafka/kafka-delete-unknown-error.golden", wantErrCode: 1},
 		{args: "kafka cluster delete lkc-def973", fixture: "kafka/5.golden"},
+		{args: "kafka cluster delete new-cluster-in-other-env1 --environment not-595", fixture: "kafka/45.golden"},
 
 		{args: "kafka cluster use a-595", fixture: "kafka/40.golden"},
 
@@ -44,6 +49,7 @@ func (s *CLITestSuite) TestKafka() {
 		{args: "kafka cluster describe lkc-describe", fixture: "kafka/17.golden"},
 		{args: "kafka cluster describe lkc-describe -o json", fixture: "kafka/18.golden"},
 		{args: "kafka cluster describe lkc-describe -o yaml", fixture: "kafka/19.golden"},
+		{args: "kafka cluster describe new-cluster-in-other-env --environment not-595", fixture: "kafka/44.golden"},
 
 		{args: "kafka cluster describe lkc-describe-dedicated", fixture: "kafka/30.golden"},
 		{args: "kafka cluster describe lkc-describe-dedicated -o json", fixture: "kafka/31.golden"},
@@ -61,6 +67,8 @@ func (s *CLITestSuite) TestKafka() {
 		{args: "kafka acl create --cluster lkc-acls --allow --service-account 7272 --operation READ --operation DESCRIBED --topic 'test-topic'", fixture: "kafka/kafka-acls-invalid-operation.golden", wantErrCode: 1},
 		{args: "kafka acl create --cluster lkc-acls --allow --service-account 7272 --operation READ --operation DESCRIBE --topic 'test-topic'"},
 		{args: "kafka acl delete --cluster lkc-acls --allow --service-account 7272 --operation READ --operation DESCRIBE --topic 'test-topic'"},
+		{args: "kafka acl create --cluster lkc-acls --environment not-595 --allow --service-account 7272 --operation READ --operation DESCRIBE --topic 'test-topic'"},
+		{args: "kafka acl delete --cluster lkc-acls --environment not-595 --allow --service-account 7272 --operation READ --operation DESCRIBE --topic 'test-topic'"},
 
 		{args: "kafka link list --cluster lkc-links", fixture: "kafka/kafka20.golden", wantErrCode: 0},
 		{args: "kafka link list --cluster lkc-links -o json", fixture: "kafka/kafka21.golden", wantErrCode: 0},

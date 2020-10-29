@@ -108,12 +108,14 @@ const (
 	NonEmptyNameErrorMsg                 = "`--name` flag value must not be emtpy"
 
 	// kafka topic commands
-	FailedToProduceErrorMsg    = "failed to produce offset %d: %s\n"
-	ConfigurationFormErrorMsg  = "configuration must be in the form of key=value"
-	MissingKeyErrorMsg         = "missing key in message"
-	UnknownValueFormatErrorMsg = "unknown value schema format"
-	TopicExistsErrorMsg        = "topic \"%s\" already exists for Kafka cluster \"%s\""
-	TopicExistsSuggestions     = ListTopicSuggestions
+	FailedToProduceErrorMsg    				= "failed to produce offset %d: %s\n"
+	ConfigurationFormErrorMsg  				= "configuration must be in the form of key=value"
+	MissingKeyErrorMsg         				= "missing key in message"
+	UnknownValueFormatErrorMsg 				= "unknown value schema format"
+	TopicExistsErrorMsg        				= "topic \"%s\" already exists for Kafka cluster \"%s\""
+	TopicExistsSuggestions     				= ListTopicSuggestions
+	NoAPISecretStoredOrPassedMsg 			= "no API secret for API key \"%s\" of resource \"%s\" passed via flag or stored in local CLI state"
+	NoAPISecretStoredOrPassedSuggestions 	= "Pass the API secret with flag \"--api-secret\" or store with `ccloud api-key store %s --resource %s`."
 
 	// serialization/deserialization commands
 	JsonSchemaInvalidErrorMsg    = "the json schema is invalid"

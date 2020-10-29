@@ -114,7 +114,7 @@ func (s *CLITestSuite) TestAPIKey() {
 				require.NoError(t, err)
 				ctx := cfg.Context()
 				require.NotNil(t, ctx)
-				kcc := ctx.KafkaClusterContext.GetKafkaClusterConfig("lkc-cool1")
+				kcc := ctx.KafkaClusterContext.GetKafkaClusterConfig("lkc-cool1", "")
 				pair := kcc.APIKeys["UIAPIKEY100"]
 				require.NotNil(t, pair)
 				require.Equal(t, "NEWSECRET", pair.Secret)

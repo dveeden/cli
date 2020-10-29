@@ -2,6 +2,8 @@ package cmd_test
 
 import (
 	"fmt"
+	v0 "github.com/confluentinc/cli/internal/pkg/config/v0"
+	"github.com/spf13/pflag"
 	"os"
 	"reflect"
 	"strings"
@@ -353,11 +355,25 @@ func TestPreRun_HasAPIKeyCommand(t *testing.T) {
 	userNotLoggedIn := v3.AuthenticatedCloudConfigMock()
 	userNotLoggedIn.Context().State.Auth = nil
 
+	usernameClusterWithoutKeyOrSecret := v3.AuthenticatedCloudConfigMock()
+	usernameClusterWithoutKeyOrSecret.Context().State.AuthToken = validAuthToken
+	usernameClusterWithoutKeyOrSecret.Context().KafkaClusterContext.GetKafkaClusterConfig("lkc-0000", "").APIKey = ""
+
+	usernameClusterWithStoredSecret := v3.AuthenticatedCloudConfigMock()
+	usernameClusterWithStoredSecret.Context().State.AuthToken = validAuthToken
+	usernameClusterWithStoredSecret.Context().KafkaClusterContext.GetKafkaClusterConfig("lkc-0000", "").APIKeys["miles"] = &v0.APIKeyPair{
+		Key:    "miles",
+		Secret: "secret",
+	}
+	usernameClusterWithoutSecret := v3.AuthenticatedCloudConfigMock()
+	usernameClusterWithoutSecret.Context().State.AuthToken = validAuthToken
 	tests := []struct {
 		name           string
 		config         *v3.Config
 		errMsg         string
 		suggestionsMsg string
+		key            string
+		secret         string
 	}{
 		{
 			name:   "username logged in user",
@@ -378,6 +394,24 @@ func TestPreRun_HasAPIKeyCommand(t *testing.T) {
 		{
 			name:   "api credential context",
 			config: v3.APICredentialConfigMock(),
+		},
+		{
+			name:   "api key and secret passed via flags",
+			key:    "miles",
+			secret: "shhhh",
+			config: usernameClusterWithoutKeyOrSecret,
+		},
+		{
+			name: "api key passed via flag with stored secret",
+			key: "miles",
+			config: usernameClusterWithStoredSecret,
+		},
+		{
+			name: "api key passed via flag without stored secret",
+			key: "miles",
+			errMsg: errors.NoAPISecretStoredOrPassedMsg,
+			suggestionsMsg: errors.NoAPISecretStoredOrPassedSuggestions,
+			config: usernameClusterWithoutSecret,
 		},
 	}
 	for _, tt := range tests {
@@ -408,8 +442,11 @@ func TestPreRun_HasAPIKeyCommand(t *testing.T) {
 			}
 			rootCmd := pcmd.NewHasAPIKeyCLICommand(root, r)
 			root.Flags().CountP("verbose", "v", "Increase verbosity")
+			root.Flags().String("api-key", "", "Kafka cluster API key.")
+			root.Flags().String("api-secret", "", "API key secret.")
+			root.Flags().String("cluster", "", "Kafka cluster ID.")
 
-			_, err := pcmd.ExecuteCommand(rootCmd.Command)
+			_, err := pcmd.ExecuteCommand(rootCmd.Command, "--api-key", tt.key, "--api-secret", tt.secret)
 			if tt.errMsg != "" {
 				require.Error(t, err)
 				require.Equal(t, tt.errMsg, err.Error())
@@ -419,6 +456,52 @@ func TestPreRun_HasAPIKeyCommand(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestAuthenticatedStateFlagCommand_AddCommand(t *testing.T) {
+	userNameConfigLoggedIn := v3.AuthenticatedCloudConfigMock()
+	userNameConfigLoggedIn.Context().State.AuthToken = validAuthToken
+
+	subcommandFlags := map[string]*pflag.FlagSet {
+		"root"	:	pcmd.ContextSet(),
+		"one"	:	pcmd.EnvironmentContextSet(),
+		"two"	:	pcmd.KeySecretSet(),
+	}
+	r := &pcmd.PreRun{
+		CLIName: "ccloud",
+		Version: pmock.NewVersionMock(),
+		Logger:  log.New(),
+		UpdateClient: &mock.Client{
+			CheckForUpdatesFunc: func(n, v string, f bool) (bool, string, error) {
+				return false, "", nil
+			},
+		},
+		FlagResolver: &pcmd.FlagResolverImpl{
+			Prompt: &pcmd.RealPrompt{},
+			Out:    os.Stdout,
+		},
+		Analytics:          cliMock.NewDummyAnalyticsMock(),
+		Clock:              clockwork.NewRealClock(),
+		UpdateTokenHandler: auth.NewUpdateTokenHandler(auth.NewNetrcHandler("")),
+		Config:             userNameConfigLoggedIn,
+	}
+	cmdRoot := &cobra.Command{Use: "root"}
+	root := pcmd.NewAuthenticatedStateFlagCommand(cmdRoot, r, subcommandFlags)
+
+	for subcommand, _ := range subcommandFlags {
+		t.Run(subcommand, func(t *testing.T) {
+			cmd := &cobra.Command{Use: subcommand}
+			root.AddCommand(cmd)
+			//create flagset of all flags that should be included
+			shouldHaveFlags := subcommandFlags["root"]
+			shouldHaveFlags.AddFlagSet(subcommandFlags[subcommand])
+			//iterate through shouldHaveFlags and make sure they are all attached to cmd
+			shouldHaveFlags.VisitAll(func(flag *pflag.Flag) {
+				f := cmd.Flag(flag.Name)
+				require.NotNil(t, f)
+			})
 		})
 	}
 }

@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	v0 "github.com/confluentinc/cli/internal/pkg/config/v0"
+	v1 "github.com/confluentinc/cli/internal/pkg/config/v1"
 	"os"
 	"strings"
 
@@ -15,7 +18,6 @@ import (
 
 	"github.com/confluentinc/cli/internal/pkg/analytics"
 	pauth "github.com/confluentinc/cli/internal/pkg/auth"
-	v1 "github.com/confluentinc/cli/internal/pkg/config/v1"
 	v2 "github.com/confluentinc/cli/internal/pkg/config/v2"
 	v3 "github.com/confluentinc/cli/internal/pkg/config/v3"
 	"github.com/confluentinc/cli/internal/pkg/errors"
@@ -30,7 +32,6 @@ type PreRunner interface {
 	Authenticated(command *AuthenticatedCLICommand) func(cmd *cobra.Command, args []string) error
 	AuthenticatedWithMDS(command *AuthenticatedCLICommand) func(cmd *cobra.Command, args []string) error
 	HasAPIKey(command *HasAPIKeyCLICommand) func(cmd *cobra.Command, args []string) error
-	SetStateValues(cmd *AuthenticatedStateFlagCommand) func(*cobra.Command, []string) error
 }
 
 // PreRun is the standard PreRunner implementation
@@ -70,8 +71,7 @@ type HasAPIKeyCLICommand struct {
 
 type AuthenticatedStateFlagCommand struct {
 	*AuthenticatedCLICommand
-	EnvId		string
-	Cluster		*v1.KafkaClusterConfig
+	subcommandFlags map[string]*pflag.FlagSet
 }
 
 func (a *AuthenticatedCLICommand) AuthToken() string {
@@ -82,22 +82,11 @@ func (a *AuthenticatedCLICommand) EnvironmentId() string {
 	return a.State.Auth.Account.Id
 }
 
-func (s *AuthenticatedStateFlagCommand) EnvironmentId() string {
-	if s.EnvId != "" {
-		return s.EnvId
-	}
-	return s.AuthenticatedCLICommand.EnvironmentId()
-}
-
-func NewAuthenticatedStateFlagCommand(command *cobra.Command, prerunner PreRunner) *AuthenticatedStateFlagCommand {
+func NewAuthenticatedStateFlagCommand(command *cobra.Command, prerunner PreRunner, flagMap map[string]*pflag.FlagSet) *AuthenticatedStateFlagCommand {
 	cmd := &AuthenticatedStateFlagCommand{
 		NewAuthenticatedCLICommand(command, prerunner),
-		"",
-		nil,
+		flagMap,
 	}
-	command.PersistentFlags().String("cluster", "", "Kafka cluster ID.")
-	command.PersistentFlags().String("environment", "", "Environment ID.")
-	command.PersistentPreRunE = NewCLIPreRunnerE(prerunner.SetStateValues(cmd))
 	return cmd
 }
 
@@ -146,6 +135,13 @@ func NewCLICommand(command *cobra.Command, prerunner PreRunner) *CLICommand {
 		Command:   command,
 		prerunner: prerunner,
 	}
+}
+
+func (s *AuthenticatedStateFlagCommand) AddCommand(command *cobra.Command) {
+	command.Flags().AddFlagSet(s.subcommandFlags[strings.Fields(s.Use)[0]])
+	command.Flags().AddFlagSet(s.subcommandFlags[strings.Fields(command.Use)[0]])
+	command.Flags().SortFlags = false
+	s.AuthenticatedCLICommand.AddCommand(command)
 }
 
 func (a *AuthenticatedCLICommand) AddCommand(command *cobra.Command) {
@@ -219,6 +215,7 @@ func LabelRequiredFlags(cmd *cobra.Command) {
 // Authenticated provides PreRun operations for commands that require a logged-in Confluent Cloud user.
 func (r *PreRun) Authenticated(command *AuthenticatedCLICommand) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		fmt.Println("in authenticated")
 		err := r.Anonymous(command.CLICommand)(cmd, args)
 		if err != nil {
 			return err
@@ -239,6 +236,9 @@ func (r *PreRun) Authenticated(command *AuthenticatedCLICommand) func(cmd *cobra
 		}
 		command.Context = ctx
 		command.State, err = ctx.AuthenticatedState(cmd)
+		//command.Context.State = command.State
+		fmt.Println("auth state")
+		fmt.Println(command.State)
 		if err != nil {
 			return err
 		}
@@ -308,9 +308,22 @@ func (r *PreRun) HasAPIKey(command *HasAPIKeyCLICommand) func(cmd *cobra.Command
 			}
 			ctx.client = client
 			command.Config.Client = client
-			clusterId, err = r.getClusterIdForAuthenticatedUser(command, ctx, cmd)
+			cluster, err := r.getClusterForAuthenticatedUser(command, ctx, cmd)
 			if err != nil {
 				return err
+			}
+			clusterId = cluster.ID
+			key, secret, err := ctx.KeyAndSecretFlags(cmd)
+			if err != nil {
+				return err
+			}
+			if key != "" {
+				cluster.APIKey = key
+				if secret != "" {
+					cluster.APIKeys[key] = &v0.APIKeyPair{Key: key, Secret: secret}
+				} else if cluster.APIKeys[key] == nil {
+					return errors.NewErrorWithSuggestions(errors.NoAPISecretStoredOrPassedMsg, errors.NoAPISecretStoredOrPassedSuggestions)
+				}
 			}
 		} else {
 			panic("Invalid Credential Type")
@@ -323,35 +336,6 @@ func (r *PreRun) HasAPIKey(command *HasAPIKeyCLICommand) func(cmd *cobra.Command
 			err = &errors.UnspecifiedAPIKeyError{ClusterID: clusterId}
 			return err
 		}
-		return nil
-	}
-}
-
-func (r *PreRun) SetStateValues(stateFlagCmd *AuthenticatedStateFlagCommand) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		err := r.Authenticated(stateFlagCmd.AuthenticatedCLICommand)(cmd, args)
-		if err != nil {
-			return err
-		}
-		stateFlagCmd.Config.Config = r.Config
-		stateFlagCmd.Version = r.Version
-		stateFlagCmd.Config.Resolver = r.FlagResolver
-		envId, err := r.FlagResolver.ResolveEnvironmentFlag(cmd)
-		if err != nil {
-			return err
-		}
-		if envId != "" {
-			stateFlagCmd.EnvId = envId
-		}
-		ctx, err := stateFlagCmd.Config.Context(cmd)
-		if err != nil {
-			return err
-		}
-		cluster, err := ctx.GetKafkaClusterForCommand(cmd)
-		if err != nil {
-			return err
-		}
-		stateFlagCmd.Cluster = cluster
 		return nil
 	}
 }
@@ -371,12 +355,12 @@ func (r *PreRun) checkUserAuthentication(ctx *DynamicContext, cmd *cobra.Command
 }
 
 // if context is authenticated, client is created and used to for DynamicContext.FindKafkaCluster for finding active cluster
-func (r *PreRun) getClusterIdForAuthenticatedUser(command *HasAPIKeyCLICommand, ctx *DynamicContext, cmd *cobra.Command) (string, error) {
+func (r *PreRun) getClusterForAuthenticatedUser(command *HasAPIKeyCLICommand, ctx *DynamicContext, cmd *cobra.Command) (*v1.KafkaClusterConfig, error) {
 	cluster, err := ctx.GetKafkaClusterForCommand(cmd)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return cluster.ID, nil
+	return cluster, nil
 }
 
 // if API key credential then the context is initialized to be used for only one cluster, and cluster id can be obtained directly from the context config

@@ -19,7 +19,7 @@ import (
 )
 
 type command struct {
-	*pcmd.AuthenticatedCLICommand
+	*pcmd.AuthenticatedStateFlagCommand
 }
 
 type connectorDescribeDisplay struct {
@@ -54,11 +54,11 @@ var (
 // New returns the default command object for interacting with Connect.
 func New(cliName string, prerunner pcmd.PreRunner) *cobra.Command {
 	cmd := &command{
-		AuthenticatedCLICommand: pcmd.NewAuthenticatedCLICommand(
+		AuthenticatedStateFlagCommand: pcmd.NewAuthenticatedStateFlagCommand(
 			&cobra.Command{
 				Use:   "connector",
 				Short: "Manage Kafka Connect.",
-			}, prerunner),
+			}, prerunner, SubcommandFlags),
 	}
 	cmd.init(cliName)
 	return cmd.Command
@@ -77,7 +77,6 @@ func (c *command) init(cliName string) {
 			},
 		),
 	}
-	cmd.Flags().String("cluster", "", "Kafka cluster ID.")
 	cmd.Flags().StringP(output.FlagName, output.ShortHandFlag, output.DefaultValue, output.Usage)
 	cmd.Flags().SortFlags = false
 	c.AddCommand(cmd)
@@ -94,7 +93,6 @@ func (c *command) init(cliName string) {
 			},
 		),
 	}
-	cmd.Flags().String("cluster", "", "Kafka cluster ID.")
 	cmd.Flags().StringP(output.FlagName, output.ShortHandFlag, output.DefaultValue, output.Usage)
 	cmd.Flags().SortFlags = false
 	c.AddCommand(cmd)
@@ -112,7 +110,6 @@ func (c *command) init(cliName string) {
 		),
 	}
 	cmd.Flags().String("config", "", "JSON connector config file.")
-	cmd.Flags().String("cluster", "", "Kafka cluster ID.")
 	cmd.Flags().StringP(output.FlagName, output.ShortHandFlag, output.DefaultValue, output.Usage)
 	panicOnError(cmd.MarkFlagRequired("config"))
 	cmd.Flags().SortFlags = false
@@ -130,8 +127,6 @@ func (c *command) init(cliName string) {
 			},
 		),
 	}
-	cmd.Flags().String("cluster", "", "Kafka cluster ID.")
-	cmd.Flags().SortFlags = false
 	c.AddCommand(cmd)
 
 	cmd = &cobra.Command{
@@ -141,7 +136,6 @@ func (c *command) init(cliName string) {
 		RunE:  pcmd.NewCLIRunE(c.update),
 	}
 	cmd.Flags().String("config", "", "JSON connector config file.")
-	cmd.Flags().String("cluster", "", "Kafka cluster ID.")
 	panicOnError(cmd.MarkFlagRequired("config"))
 	cmd.Flags().SortFlags = false
 	c.AddCommand(cmd)
@@ -158,8 +152,6 @@ func (c *command) init(cliName string) {
 			},
 		),
 	}
-	cmd.Flags().String("cluster", "", "Kafka cluster ID.")
-	cmd.Flags().SortFlags = false
 	c.AddCommand(cmd)
 
 	cmd = &cobra.Command{
@@ -174,8 +166,6 @@ func (c *command) init(cliName string) {
 			},
 		),
 	}
-	cmd.Flags().String("cluster", "", "Kafka cluster ID.")
-	cmd.Flags().SortFlags = false
 	c.AddCommand(cmd)
 }
 

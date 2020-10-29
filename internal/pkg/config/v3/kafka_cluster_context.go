@@ -83,20 +83,26 @@ func (k *KafkaClusterContext) SetActiveKafkaCluster(clusterId string) {
 		kafkaEnvContext.ActiveKafkaCluster = clusterId
 	}
 }
-
-func (k *KafkaClusterContext) GetKafkaClusterConfig(clusterId string) *v1.KafkaClusterConfig {
+// Get Kafka cluster config for specified cluster and env id. Empty envId uses current Kafka Env Context
+// Since KafkaClusterContext.Context does not get overridden with environment flag so need to pass it in
+func (k *KafkaClusterContext) GetKafkaClusterConfig(clusterId string, envId string) *v1.KafkaClusterConfig {
 	if !k.EnvContext {
 		return k.KafkaClusterConfigs[clusterId]
 	}
-	kafkaEnvContext := k.GetCurrentKafkaEnvContext()
+	var kafkaEnvContext *KafkaEnvContext
+	if envId != "" {
+		kafkaEnvContext = k.GetKafkaEnvContextByEnvId(envId)
+	} else {
+		kafkaEnvContext = k.GetCurrentKafkaEnvContext()
+	}
 	return kafkaEnvContext.KafkaClusterConfigs[clusterId]
 }
 
-func (k *KafkaClusterContext) AddKafkaClusterConfig(kcc *v1.KafkaClusterConfig) {
+func (k *KafkaClusterContext) AddKafkaClusterConfig(kcc *v1.KafkaClusterConfig, envId string) {
 	if !k.EnvContext {
 		k.KafkaClusterConfigs[kcc.ID] = kcc
 	} else {
-		kafkaEnvContext := k.GetCurrentKafkaEnvContext()
+		kafkaEnvContext := k.GetKafkaEnvContextByEnvId(envId)
 		kafkaEnvContext.KafkaClusterConfigs[kcc.ID] = kcc
 	}
 }
@@ -132,6 +138,24 @@ func (k *KafkaClusterContext) DeleteAPIKey(apiKey string) {
 	}
 }
 
+func (k *KafkaClusterContext) GetKafkaEnvContextByEnvId(envId string) *KafkaEnvContext {
+//	return k.GetCurrentKafkaEnvContext()
+	fmt.Println("HEY HEY HEY HEY")
+	fmt.Println(envId)
+	if k.KafkaEnvContexts[envId] == nil {
+		k.KafkaEnvContexts[envId] = &KafkaEnvContext{
+			ActiveKafkaCluster:  "",
+			KafkaClusterConfigs: map[string]*v1.KafkaClusterConfig{},
+		}
+		err := k.Context.Save()
+		if err != nil {
+			panic(fmt.Sprintf("Unable to save new KafkaEnvContext to config for context '%s' environment '%s'.", k.Context.Name, envId))
+		}
+	}
+	return k.KafkaEnvContexts[envId]
+}
+// Get the KafkaEnvContext for the current environment id
+// Create and save KafkaEnvContext if no entry already exists for current environment id
 func (k *KafkaClusterContext) GetCurrentKafkaEnvContext() *KafkaEnvContext {
 	curEnv := k.Context.GetCurrentEnvironmentId()
 	if k.KafkaEnvContexts[curEnv] == nil {
@@ -145,6 +169,7 @@ func (k *KafkaClusterContext) GetCurrentKafkaEnvContext() *KafkaEnvContext {
 		}
 	}
 	return k.KafkaEnvContexts[curEnv]
+	//return k.GetKafkaEnvContextByEnvId(curEnv)
 }
 
 func (k *KafkaClusterContext) Validate() {
