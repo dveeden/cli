@@ -3,6 +3,7 @@ package v3
 import (
 	"encoding/json"
 	"fmt"
+	orgv1 "github.com/confluentinc/cc-structs/kafka/org/v1"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -37,6 +38,7 @@ type Config struct {
 	ContextStates      map[string]*v2.ContextState `json:"context_states,omitempty"`
 	CurrentContext     string                      `json:"current_context"`
 	AnonymousId        string                      `json:"anonymous_id,omitempty"`
+	accountOverwrittenByFlagVal	*orgv1.Account
 }
 
 // NewBaseConfig initializes a new Config object
@@ -115,9 +117,23 @@ func (c *Config) Load() error {
 
 // Save writes the CLI config to disk.
 func (c *Config) Save() error {
+	//fmt.Println("saving")
+	//fmt.Println(c)
+	////if c.accountOverwrittenByFlagVal != nil {
+	//	fmt.Println("saving the day")
+	//	c.Context().State.Auth.Account = c.accountOverwrittenByFlagVal
+	//}
 	err := c.Validate()
 	if err != nil {
 		return err
+	}
+	ctx := c.Context()
+	var temp *orgv1.Account
+	var tempSet bool
+	if c.accountOverwrittenByFlagVal != nil && ctx != nil && ctx.State != nil && ctx.State.Auth != nil {
+		tempSet = true
+		temp = ctx.State.Auth.Account
+		ctx.State.Auth.Account = c.accountOverwrittenByFlagVal
 	}
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -134,6 +150,9 @@ func (c *Config) Save() error {
 	err = ioutil.WriteFile(filename, cfg, 0600)
 	if err != nil {
 		return errors.Wrapf(err, errors.CreateConfigFileErrorMsg, filename)
+	}
+	if tempSet {
+		c.Context().State.Auth.Account = temp
 	}
 	return nil
 }
@@ -315,4 +334,12 @@ func (c *Config) getFilename() (string, error) {
 		return "", errors.NewErrorWithSuggestions(fmt.Sprintf(errors.ResolvingConfigPathErrorMsg, c.Filename), errors.ResolvingConfigPathSuggestions)
 	}
 	return filename, nil
+}
+
+func (c *Config) GetOverwrittenAccount() *orgv1.Account {
+	return c.accountOverwrittenByFlagVal
+}
+
+func (c *Config) SetOverwrittenAccount(account *orgv1.Account) {
+	c.accountOverwrittenByFlagVal = account
 }

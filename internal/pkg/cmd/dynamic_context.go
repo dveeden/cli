@@ -221,23 +221,29 @@ func (d *DynamicContext) AuthenticatedState(cmd *cobra.Command) (*v2.ContextStat
 		return nil, &errors.NotLoggedInError{CLIName: d.Config.CLIName}
 	}
 	envId, err := d.resolveEnvironmentId(cmd)
-	fmt.Println("env id from flag: "+envId)
 	if err != nil {
 		return nil, err
 	}
 	if envId == "" {
 		return d.State, nil
 	}
-	state := deepcopy.Copy(d.State).(*v2.ContextState)
+	fmt.Println("evaluating acct override")
+	fmt.Println(d.Config.GetOverwrittenAccount())
+	if d.Config.GetOverwrittenAccount() == nil {
+		state := deepcopy.Copy(d.State).(*v2.ContextState)
+		fmt.Println("saving state for "+state.Auth.Account.Id)
+		d.Config.SetOverwrittenAccount(state.Auth.Account)
+	}
 	for _, account := range d.State.Auth.Accounts {
 		if account.Id == envId {
-			fmt.Println("found account")
-			state.Auth.Account = account
+			//state.Auth.Account = account
+			d.State.Auth.Account = account
 		}
 	}
+	fmt.Println("new state is "+d.State.Auth.Account.Id)
 	fmt.Println("yur")
-	fmt.Println(d.State.Auth.Account.Id)
-	return state, nil
+	fmt.Println(d.Config.GetOverwrittenAccount())
+	return d.State, nil
 }
 
 func (d *DynamicContext) HasAPIKey(cmd *cobra.Command, clusterId string) (bool, error) {

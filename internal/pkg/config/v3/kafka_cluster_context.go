@@ -210,6 +210,9 @@ func (k *KafkaClusterContext) Validate() {
 }
 
 func (k *KafkaClusterContext) validateActiveKafka() {
+	fmt.Println("in validate active kafka")
+	fmt.Println(k.ActiveKafkaCluster)
+	fmt.Println(k.EnvContext)
 	errMsg := "Active Kafka cluster '%s' has no info stored in config for context '%s'.\n" +
 		"Removing active Kafka setting for the context.\n" +
 		"You can set active Kafka cluster with 'ccloud kafka cluster use'.\n"
