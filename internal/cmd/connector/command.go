@@ -176,7 +176,26 @@ func (c *command) init(cliName string) {
 		),
 	}
 	c.AddCommand(resumeCmd)
-	c.completableChildren = []*cobra.Command{deleteCmd, describeCmd, pauseCmd, resumeCmd, updateCmd}
+
+	previewCmd := &cobra.Command{
+		Use:   "preview",
+		Short: "Preview a connector.",
+		Args:  cobra.NoArgs,
+		RunE:  pcmd.NewCLIRunE(c.preview),
+		Example: examples.BuildExampleString(
+			examples.Example{
+				Text: "Preview a connector in the current or specified Kafka cluster context.",
+				Code: fmt.Sprintf("%s connector preview --config <file>\n%s connector create --cluster <cluster-id> --config <file>", cliName, cliName),
+			},
+		),
+	}
+	previewCmd.Flags().String("config", "", "JSON connector config file.")
+	previewCmd.Flags().StringP(output.FlagName, output.ShortHandFlag, output.DefaultValue, output.Usage)
+	panicOnError(previewCmd.MarkFlagRequired("config"))
+	previewCmd.Flags().SortFlags = false
+	c.AddCommand(previewCmd)
+
+	c.completableChildren = []*cobra.Command{deleteCmd, describeCmd, pauseCmd, resumeCmd, updateCmd, previewCmd}
 	c.completableFlagChildren = map[string][]*cobra.Command{
 		"cluster": {createCmd},
 	}
@@ -206,6 +225,49 @@ func (c *command) list(cmd *cobra.Command, _ []string) error {
 		outputWriter.AddElement(connector)
 	}
 	return outputWriter.Out()
+}
+
+func (c *command) preview(cmd *cobra.Command, args []string) error {
+	kafkaCluster, err := c.Context.GetKafkaClusterForCommand(cmd)
+	if err != nil {
+		return err
+	}
+	userConfigs, err := getConfig(cmd)
+	if err != nil {
+		return err
+	}
+	connector, err := c.Client.Connect.Preview(context.Background(), &schedv1.ConnectorConfig{UserConfigs: *userConfigs, AccountId: c.EnvironmentId(), KafkaClusterId: kafkaCluster.ID, Name: (*userConfigs)["name"], Plugin: (*userConfigs)["connector.class"]})
+	if err != nil {
+		return err
+	}
+	// Resolve Connector ID from Name of created connector
+	connectorExpansion, err := c.Client.Connect.GetExpansionByName(context.Background(), &schedv1.Connector{AccountId: c.EnvironmentId(), KafkaClusterId: kafkaCluster.ID, Name: connector.Name})
+	if err != nil {
+		return err
+	}
+	outputFormat, err := cmd.Flags().GetString(output.FlagName)
+	if err != nil {
+		return err
+	}
+	trace := connectorExpansion.Status.Connector.Trace
+	if outputFormat == output.Human.String() {
+		utils.Printf(cmd, errors.CreatedConnectorMsg, connector.Name, connectorExpansion.Id.Id)
+		if trace != "" {
+			utils.Printf(cmd, "Error Trace: %s\n", trace)
+		}
+	} else {
+		return output.StructuredOutput(outputFormat, &struct {
+			ConnectorName string `json:"name" yaml:"name"`
+			Id            string `json:"id" yaml:"id"`
+			Trace         string `json:"error_trace,omitempty" yaml:"error_trace,omitempty"`
+		}{
+			ConnectorName: connector.Name,
+			Id:            connectorExpansion.Id.Id,
+			Trace:         trace,
+		})
+	}
+	c.analyticsClient.SetSpecialProperty(analytics.ResourceIDPropertiesKey, connectorExpansion.Id.Id)
+	return nil
 }
 
 func (c *command) describe(cmd *cobra.Command, args []string) error {
