@@ -33,6 +33,7 @@ require (
 	github.com/confluentinc/schema-registry-sdk-go v0.0.11
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dghubble/sling v1.3.0
+	github.com/docker/docker v0.7.3-0.20190506211059-b20a14b54661
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
 	github.com/fatih/color v1.13.0
 	github.com/gliderlabs/ssh v0.3.0 // indirect

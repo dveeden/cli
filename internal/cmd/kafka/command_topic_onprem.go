@@ -4,10 +4,12 @@ package kafka
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +18,8 @@ import (
 	ckafka "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/confluentinc/go-printer"
 	"github.com/confluentinc/kafka-rest-sdk-go/kafkarestv3"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
@@ -153,6 +157,8 @@ func (c *authenticatedTopicCommand) onPremInit() {
 	produceCmd.Flags().AddFlagSet(pcmd.OnPremAuthenticationSet()) // includes bootstrap, protocol, username, password
 	produceCmd.Flags().Bool("parse-key", false, "Parse key from the message.")
 	produceCmd.Flags().String("delimiter", ":", "The key/value delimiter.")
+	produceCmd.Flags().String("schema", "", "The path to the schema file.")
+	produceCmd.Flags().Int32("schemaId", 0, "Schema ID to be used for producing messages.")
 	produceCmd.Flags().String("value-format", "string", "Format of message value as string, avro, protobuf, or jsonschema.")
 	produceCmd.Flags().SortFlags = false
 	c.AddCommand(produceCmd)
@@ -581,21 +587,7 @@ func (c *authenticatedTopicCommand) onPremProduce(cmd *cobra.Command, args []str
 	}
 	topicName := args[0]
 
-	parseKey, err := cmd.Flags().GetBool("parse-key")
-	if err != nil {
-		return err
-	}
-
-	delim, err := cmd.Flags().GetString("delimiter")
-	if err != nil {
-		return err
-	}
-
-	valueFormat, err := cmd.Flags().GetString("value-format")
-	if err != nil {
-		return err
-	}
-
+	// authentication flags
 	bootstrap, err := cmd.Flags().GetString("bootstrap")
 	if err != nil {
 		return err
@@ -605,6 +597,7 @@ func (c *authenticatedTopicCommand) onPremProduce(cmd *cobra.Command, args []str
 	if err != nil {
 		return err
 	}
+
 	enableSSLVerification, err := cmd.Flags().GetBool("ssl-verification")
 	if err != nil {
 		return err
@@ -669,10 +662,44 @@ func (c *authenticatedTopicCommand) onPremProduce(cmd *cobra.Command, args []str
 		return err
 	}
 
+	delim, err := cmd.Flags().GetString("delimiter")
+	if err != nil {
+		return err
+	}
+
+	valueFormat, err := cmd.Flags().GetString("value-format")
+	if err != nil {
+		return err
+	}
+
+	parseKey, err := cmd.Flags().GetBool("parse-key")
+	if err != nil {
+		return err
+	}
+
+	schemaPath, err := cmd.Flags().GetString("schema")
+	if err != nil {
+		return err
+	}
+
+	schemaId, err := cmd.Flags().GetInt32("schemaId")
+	if err != nil {
+		return err
+	}
+
 	serializationProvider, err := serdes.GetSerializationProvider(valueFormat)
 	if err != nil {
 		return err
 	}
+	err = serializationProvider.LoadSchema(schemaPath)
+	if err != nil {
+		return err
+	}
+	// Meta info contains magic byte and schema ID (4 bytes).
+	metaInfo := []byte{0x0}
+	schemaIdBuffer := make([]byte, 4)
+	binary.BigEndian.PutUint32(schemaIdBuffer, uint32(schemaId))
+	metaInfo = append(metaInfo, schemaIdBuffer...)
 
 	utils.ErrPrintln(cmd, errors.StartingProducerMsg)
 
@@ -716,18 +743,25 @@ func (c *authenticatedTopicCommand) onPremProduce(cmd *cobra.Command, args []str
 			continue
 		}
 
-		key, value, err := getMsgKeyAndValueOnPrem([]byte{}, data, delim, parseKey, serializationProvider)
+		key, value, err := getMsgKeyAndValueOnPrem(metaInfo, data, delim, parseKey, serializationProvider)
 		if err != nil {
 			return err
 		}
-		offset, _ := ckafka.NewOffset(ckafka.OffsetBeginning)
+
 		msg := &ckafka.Message{
-			TopicPartition: ckafka.TopicPartition{Topic: &topicName, Partition: ckafka.PartitionAny, Offset: offset},
+			TopicPartition: ckafka.TopicPartition{Topic: &topicName, Partition: ckafka.PartitionAny},
 			Key:            []byte(key),
 			Value:          []byte(value),
 		}
+
 		err = producer.Produce(msg, deliveryChan)
 		if err != nil {
+			isProduceToCompactedTopicError, err := errors.CatchProduceToCompactedTopicError(err, topicName)
+			if isProduceToCompactedTopicError {
+				scanErr = err
+				close(input)
+				break
+			}
 			utils.ErrPrintf(cmd, errors.FailedToProduceErrorMsg, msg.TopicPartition.Offset, err)
 		}
 
@@ -861,12 +895,46 @@ func (c *authenticatedTopicCommand) onPremConsume(cmd *cobra.Command, args []str
 		return err
 	}
 
+	// testing --------------------
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		panic(err)
+	}
+	options := types.ServiceListOptions{}
+	services, err := cli.ServiceList(ctx, options)
+	fmt.Println("services:", services)
+
+	dir := filepath.Join(os.TempDir(), "confluent-schema")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.Mkdir(dir, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	// var srClient *srsdk.APIClient
+	// var ctx context.Context
+	// if valueFormat != "string" {
+	// 	// Only initialize client and context when schema is specified.
+	// 	srClient, ctx, err = sr.GetAPIClientWithAPIKey(cmd, nil, c.Config, c.Version, "superUser", "superUser")
+	// 	if err != nil {
+	// 		if err.Error() == errors.NotLoggedInErrorMsg {
+	// 			return new(errors.SRNotAuthenticatedError)
+	// 		} else {
+	// 			return err
+	// 		}
+	// 	}
+	// } else {
+	// 	srClient, ctx = nil, nil
+	// }
+
 	groupHandler := &GroupHandler{
 		SrClient:   nil,
 		Ctx:        nil,
 		Format:     valueFormat,
 		Out:        cmd.OutOrStdout(),
-		Properties: ConsumerProperties{PrintKey: printKey, Delimiter: delimiter, SchemaPath: ""},
+		Properties: ConsumerProperties{PrintKey: printKey, Delimiter: delimiter, SchemaPath: dir},
 	}
 
 	// start consuming messages
@@ -901,29 +969,6 @@ func (c *authenticatedTopicCommand) onPremConsume(cmd *cobra.Command, args []str
 	return err
 }
 
-func getMsgKeyAndValueOnPrem(metaInfo []byte, data, delim string, parseKey bool, serializationProvider serdes.SerializationProvider) (string, string, error) {
-	var key, valueString string
-	if parseKey {
-		record := strings.SplitN(data, delim, 2)
-		valueString = strings.TrimSpace(record[len(record)-1])
-
-		if len(record) == 2 {
-			key = strings.TrimSpace(record[0])
-		} else {
-			return "", "", errors.New(errors.MissingKeyErrorMsg)
-		}
-	} else {
-		valueString = strings.TrimSpace(data)
-	}
-	encodedMessage, err := serdes.Serialize(serializationProvider, valueString)
-	if err != nil {
-		return "", "", err
-	}
-	encoded := append(metaInfo, encodedMessage...)
-	value := string(encoded)
-	return key, value, nil
-}
-
 // validate that a topic exists before attempting to produce/consume messages
 func (c *authenticatedTopicCommand) validateTopic(client *ckafka.AdminClient, topic, clusterId string) error {
 	timeout := 10 * time.Second
@@ -946,4 +991,31 @@ func (c *authenticatedTopicCommand) validateTopic(client *ckafka.AdminClient, to
 
 	c.logger.Tracef("validateTopic succeeded")
 	return nil
+}
+
+func getMsgKeyAndValueOnPrem(metaInfo []byte, data, delim string, parseKey bool, serializationProvider serdes.SerializationProvider) (string, string, error) {
+	fmt.Println("data:", data)
+	var key, valueString string
+	if parseKey {
+		record := strings.SplitN(data, delim, 2)
+		fmt.Println("record:", record)
+		valueString = strings.TrimSpace(record[len(record)-1])
+
+		if len(record) == 2 {
+			key = strings.TrimSpace(record[0])
+		} else {
+			return "", "", errors.New(errors.MissingKeyErrorMsg)
+		}
+	} else {
+		valueString = strings.TrimSpace(data)
+	}
+	fmt.Println("valueString:", valueString) // nil???
+	encodedMessage, err := serdes.Serialize(serializationProvider, valueString)
+	if err != nil {
+		return "", "", err
+	}
+	encoded := append(metaInfo, encodedMessage...)
+	value := string(encoded)
+	fmt.Println("key:", key, "value:", value)
+	return key, value, nil
 }
