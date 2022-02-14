@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/confluentinc/ccloud-sdk-go-v1"
+	mdsv2 "github.com/confluentinc/ccloud-sdk-go-v2/mds/v2"
 	"github.com/confluentinc/kafka-rest-sdk-go/kafkarestv3"
 	mds "github.com/confluentinc/mds-sdk-go/mdsv1"
 	"github.com/confluentinc/mds-sdk-go/mdsv2alpha1"
@@ -64,6 +65,7 @@ type AuthenticatedCLICommand struct {
 	*CLICommand
 	Client            *ccloud.Client
 	MDSClient         *mds.APIClient
+	MDSv2ApiClient    *mdsv2.APIClient
 	MDSv2Client       *mdsv2alpha1.APIClient
 	KafkaRESTProvider *KafkaRESTProvider
 	Context           *DynamicContext
@@ -265,6 +267,11 @@ func (r *PreRun) Authenticated(command *AuthenticatedCLICommand) func(cmd *cobra
 		if err := r.ValidateToken(cmd, command.Config); err != nil {
 			return err
 		}
+
+		if err := r.setMdsClient(command); err != nil {
+			return err
+		}
+
 		return r.setCCloudClient(command)
 	}
 }
@@ -383,6 +390,16 @@ func (r *PreRun) setCCloudClient(cliCmd *AuthenticatedCLICommand) error {
 	return nil
 }
 
+func (r *PreRun) setMdsClient(cliCmd *AuthenticatedCLICommand) error {
+	ctx := cliCmd.Config.Context()
+
+	mdsClient := r.createMdsClient(ctx, cliCmd.Version)
+	cliCmd.MDSv2ApiClient = mdsClient
+	cliCmd.Context.mdsv2ApiClient = mdsClient
+	cliCmd.Config.MDSv2ApiClient = mdsClient
+	return nil
+}
+
 func getKafkaRestEndpoint(ctx *DynamicContext, cmd *AuthenticatedCLICommand) (string, string, error) {
 	if os.Getenv("XX_CCLOUD_USE_KAFKA_API") != "" {
 		return "", "", nil
@@ -446,6 +463,25 @@ func (r *PreRun) createCCloudClient(ctx *DynamicContext, ver *version.Version) (
 	return ccloud.NewClientWithJWT(context.Background(), authToken, &ccloud.Params{
 		BaseURL: baseURL, Logger: log.CliLogger, UserAgent: userAgent, MetricsBaseURL: ConvertToMetricsBaseURL(baseURL),
 	}), nil
+}
+
+func (r *PreRun) createMdsClient(ctx *DynamicContext, ver *version.Version) *mdsv2.APIClient {
+	var baseURL string
+	if ctx != nil {
+		baseURL = ctx.Platform.Server
+	}
+	mdsServer := baseURL[:8] + "api." + baseURL[8:]
+	server := mdsv2.ServerConfigurations{
+		{URL: mdsServer, Description: "Confluent Cloud"},
+	}
+	cfg := &mdsv2.Configuration{
+		DefaultHeader:    make(map[string]string),
+		UserAgent:        "OpenAPI-Generator/1.0.0/go",
+		Debug:            false,
+		Servers:          server,
+		OperationServers: map[string]mdsv2.ServerConfigurations{},
+	}
+	return mdsv2.NewAPIClient(cfg)
 }
 
 // Authenticated provides PreRun operations for commands that require a logged-in MDS user.
