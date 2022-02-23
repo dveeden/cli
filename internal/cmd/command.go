@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/confluentinc/cli/internal/cmd/metrics"
 	"os"
 
 	shell "github.com/brianstrauch/cobra-shell"
@@ -103,6 +104,7 @@ func NewConfluentCommand(cfg *v1.Config, isTest bool, ver *pversion.Version) *co
 	cmd.AddCommand(local.New(prerunner))
 	cmd.AddCommand(login.New(prerunner, ccloudClientFactory, mdsClientManager, netrcHandler, loginCredentialsManager, authTokenHandler, isTest).Command)
 	cmd.AddCommand(logout.New(cfg, prerunner, netrcHandler).Command)
+	cmd.AddCommand(metrics.New(prerunner))
 	cmd.AddCommand(price.New(prerunner))
 	cmd.AddCommand(prompt.New(cfg))
 	cmd.AddCommand(schemaregistry.New(cfg, prerunner, nil))
