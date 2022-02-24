@@ -15,6 +15,14 @@ type HumanListWriter struct {
 	writer       io.Writer
 }
 
+func (o *HumanListWriter) AddMapElement(e map[string]string) {
+	var data []string
+	for _, field := range o.listFields {
+		data = append(data, e[field])
+	}
+	o.data = append(o.data, data)
+}
+
 func (o *HumanListWriter) AddElement(e interface{}) {
 	o.data = append(o.data, printer.ToRow(e, o.listFields))
 }

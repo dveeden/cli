@@ -22,6 +22,9 @@ type ListOutputWriter interface {
 		* @param e : the element to add, must be either a pointer or an interface
 	*/
 	AddElement(e interface{})
+
+	AddMapElement(e map[string]string)
+
 	/*
 		Out - Create the output to the IO channel passed in during construction
 	*/

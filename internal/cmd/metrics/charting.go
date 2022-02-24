@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func chartResponse(cmd *cobra.Command, response *ccloud.MetricsApiQueryReply) error {
+func chartResponse(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response *ccloud.MetricsApiQueryReply) error {
 	ch := charts.NewLine()
 	ch.SetGlobalOptions(
 		charts.WithXAxisOpts(opts.XAxis{

@@ -19,6 +19,14 @@ type StructuredListWriter struct {
 	writer       io.Writer
 }
 
+func (o *StructuredListWriter) AddMapElement(e map[string]string) {
+	filteredMap := make(map[string]string)
+	for i := range o.listFields {
+		filteredMap[o.listLabels[i]] = e[o.listFields[i]]
+	}
+	o.data = append(o.data, filteredMap)
+}
+
 func (o *StructuredListWriter) AddElement(e interface{}) {
 	elementMap := make(map[string]string)
 	c := reflect.ValueOf(e).Elem()

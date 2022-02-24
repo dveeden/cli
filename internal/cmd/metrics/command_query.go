@@ -7,6 +7,10 @@ import (
 	"github.com/confluentinc/cli/internal/pkg/errors"
 	"github.com/confluentinc/cli/internal/pkg/output"
 	"github.com/spf13/cobra"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+	"strings"
+	"time"
 )
 
 func (c *command) newQueryCommand() *cobra.Command {
@@ -31,6 +35,8 @@ func (c *command) newQueryCommand() *cobra.Command {
 	cmd.Flags().StringArray("group-by", nil, "Label(s) to group by")
 	cmd.Flags().Int32("group-limit", 5, "Group limit")
 
+	cmd.Flags().String("granularity", "PT1M", "Query granularity")
+
 	return cmd
 }
 
@@ -47,7 +53,7 @@ func (c *command) query(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	return outputResponse(cmd, response)
+	return outputResponse(cmd, query, response)
 }
 
 func buildQuery(cmd *cobra.Command) (*ccloud.MetricsApiRequest, error) {
@@ -55,6 +61,7 @@ func buildQuery(cmd *cobra.Command) (*ccloud.MetricsApiRequest, error) {
 	interval, _ := cmd.Flags().GetString("interval")
 	groupBy, _ := cmd.Flags().GetStringArray("group-by")
 	groupLimit, _ := cmd.Flags().GetInt32("group-limit")
+	granularity, _ := cmd.Flags().GetString("granularity")
 
 	filter, err := getResourceFilter(cmd)
 	if err != nil {
@@ -70,7 +77,7 @@ func buildQuery(cmd *cobra.Command) (*ccloud.MetricsApiRequest, error) {
 		Filter:      *filter,
 		GroupBy:     groupBy,
 		Limit:       groupLimit,
-		Granularity: "PT1M",
+		Granularity: strings.ToUpper(granularity),
 		Intervals:   []string{interval},
 	}
 
@@ -113,33 +120,43 @@ func getResourceFilter(cmd *cobra.Command) (*ccloud.ApiFilter, error) {
 
 }
 
-func outputResponse(cmd *cobra.Command, response *ccloud.MetricsApiQueryReply) error {
+func outputResponse(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response *ccloud.MetricsApiQueryReply) error {
 	format, err := cmd.Flags().GetString(output.FlagName)
 	if err != nil {
 		return err
 	}
 
-	// TODO Handle labels
-
 	switch format {
 	case "html":
-		return chartResponse(cmd, response)
+		return chartResponse(cmd, query, response)
 	case "csv":
 		panic("TO DO")
 	default:
-		return outputStructured(cmd, response)
+		return outputStructured(cmd, query, response)
 	}
-
-	//data, _ := json.MarshalIndent(response, "", "  ")
-	//utils.Printf(cmd, "%s\n", data)
-
 }
 
-func outputStructured(cmd *cobra.Command, response *ccloud.MetricsApiQueryReply) error {
-	outputWriter, _ := output.NewListOutputWriter(cmd, []string{"Timestamp", "Value"}, []string{"Timestamp", "Value"}, []string{"timestamp", "value"})
+func outputStructured(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response *ccloud.MetricsApiQueryReply) error {
+	printer := message.NewPrinter(language.English)
+
+	fields := []string{"timestamp"}
+	humanLabels := []string{"Timestamp"}
+	for _, label := range query.GroupBy {
+		fields = append(fields, label)
+		humanLabels = append(humanLabels, label)
+	}
+	fields = append(fields, "value")
+	humanLabels = append(humanLabels, "Value")
+
+	outputWriter, _ := output.NewListOutputWriter(cmd, fields, humanLabels, fields)
 	for _, point := range response.Result {
-		outputWriter.AddElement(&point)
+		data := map[string]string{}
+		data["timestamp"] = point.Timestamp.Format(time.RFC3339)
+		data["value"] = printer.Sprintf("%.1f", point.Value)
+		for k, v := range point.Labels {
+			data[k] = v.(string)
+		}
+		outputWriter.AddMapElement(data)
 	}
 	return outputWriter.Out()
-
 }
