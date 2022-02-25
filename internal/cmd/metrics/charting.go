@@ -1,16 +1,39 @@
 package metrics
 
 import (
+	"fmt"
 	"github.com/confluentinc/ccloud-sdk-go-v1"
 	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/spf13/cobra"
-	"os"
+	"strings"
 )
 
-func chartResponse(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response *ccloud.MetricsApiQueryReply) error {
-	ch := charts.NewLine()
-	ch.SetGlobalOptions(
+func chartResponseAsHtml(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response abstractMetricsApiQueryReply) error {
+	chart := charts.NewLine()
+	chart.SetGlobalOptions(
+		charts.WithInitializationOpts(opts.Initialization{
+			Width:     "1200px",
+			Height:    "900px",
+			PageTitle: "Confluent Cloud Metrics",
+		}),
+		charts.WithTitleOpts(opts.Title{
+			Title:    "Metric",
+			Subtitle: query.Aggregations[0].Metric,
+		}),
+		charts.WithLegendOpts(opts.Legend{
+			Show:   true,
+			Type:   "scroll",
+			Orient: "vertical",
+			Right:  "0",
+		}),
+		charts.WithGridOpts(opts.Grid{
+			Left:   "",
+			Right:  "350px",
+			Top:    "",
+			Bottom: "",
+		}),
 		charts.WithXAxisOpts(opts.XAxis{
 			Name: "Time",
 			Type: "time",
@@ -19,27 +42,44 @@ func chartResponse(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response
 			Type:  "value",
 			Scale: true,
 		}),
-		charts.WithDataZoomOpts(opts.DataZoom{Type: "slider"}),
+		charts.WithDataZoomOpts(opts.DataZoom{}),
 		charts.WithTooltipOpts(opts.Tooltip{Show: true, Trigger: "axis"}),
 	)
 
-	data := make([]opts.LineData, len(response.Result))
-	for i, point := range response.Result {
-		data[i] = opts.LineData{
-			Value: []interface{}{point.Timestamp, point.Value},
+	switch resp := response.(type) {
+	case *ccloud.MetricsApiQueryReply:
+		{
+			data := make([]opts.LineData, len(resp.Result))
+			for i, point := range resp.Result {
+				data[i] = opts.LineData{
+					Value: []interface{}{point.Timestamp, point.Value},
+				}
+			}
+			chart.AddSeries("metric", data)
+		}
+	case *ccloud.MetricsApiQueryGroupedReply:
+		{
+			for _, group := range resp.Result {
+				data := make([]opts.LineData, len(group.Points))
+				for i, point := range group.Points {
+					data[i] = opts.LineData{
+						Value: []interface{}{point.Timestamp, point.Value},
+					}
+				}
+				arr := make([]string, 0)
+				for k, v := range group.Labels {
+					arr = append(arr, fmt.Sprintf("%s=%s", k, v))
+				}
+				chart.AddSeries(strings.Join(arr, ", "), data)
+			}
 		}
 	}
 
-	ch.AddSeries("metric", data)
+	page := components.NewPage()
+	page.AddCharts(chart)
+	page.SetLayout(components.PageCenterLayout)
 
-	f, err := os.Create("/tmp/chart.html")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	ch.Render(cmd.OutOrStdout())
-	return nil
+	return page.Render(cmd.OutOrStdout())
 }
 
 // https://github.com/wcharczuk/go-chart

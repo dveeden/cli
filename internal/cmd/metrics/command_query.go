@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+type abstractMetricsApiQueryReply interface{}
+
 func (c *command) newQueryCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query",
@@ -21,21 +23,21 @@ func (c *command) newQueryCommand() *cobra.Command {
 		RunE:  pcmd.NewCLIRunE(c.query),
 	}
 
+	cmd.Flags().StringP(output.FlagName, "o", "human", `Specify the output format as "human", "json", "yaml", or "chart-html".`)
+
 	cmd.Flags().String("metric", "", `The metric to query.`)
 	_ = cmd.MarkFlagRequired("metric")
 
-	cmd.Flags().StringP(output.FlagName, "o", "human", `Specify the output format as "human", "json", "yaml", or "html".`)
+	cmd.Flags().String("interval", "PT30M/now-2m|m", "Time range in ISO-8601 interval syntax")
+	cmd.Flags().String("granularity", "PT1M", "Query granularity")
+
+	cmd.Flags().StringArray("group-by", nil, "Label(s) to group by")
+	cmd.Flags().Int32("group-limit", 5, "Group limit")
 
 	cmd.Flags().String("kafka", "", "A Kafka cluster to query metrics for")
 	cmd.Flags().String("connector", "", "A Connector to query metrics for")
 	cmd.Flags().String("schema-registry", "", "A Schema Registry to query metrics for")
 	cmd.Flags().String("ksql", "", "A ksqlDB application to query metrics for")
-
-	cmd.Flags().String("interval", "PT30M/now-5m", "Time range in ISO-8601 interval syntax")
-	cmd.Flags().StringArray("group-by", nil, "Label(s) to group by")
-	cmd.Flags().Int32("group-limit", 5, "Group limit")
-
-	cmd.Flags().String("granularity", "PT1M", "Query granularity")
 
 	return cmd
 }
@@ -48,7 +50,13 @@ func (c *command) query(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	response, err := c.Client.MetricsApi.QueryV2(ctx, "cloud", query, "")
+	var response abstractMetricsApiQueryReply
+	if query.Format == "FLAT" {
+		response, err = c.Client.MetricsApi.QueryV2(ctx, "cloud", query, "")
+	} else {
+		response, err = c.Client.MetricsApi.QueryV2Grouped(ctx, "cloud", query, "")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -68,6 +76,16 @@ func buildQuery(cmd *cobra.Command) (*ccloud.MetricsApiRequest, error) {
 		return nil, err
 	}
 
+	out, err := cmd.Flags().GetString(output.FlagName)
+	if err != nil {
+		return nil, err
+	}
+
+	format := "FLAT"
+	if len(groupBy) > 0 && out == "chart-html" {
+		format = "GROUPED"
+	}
+
 	request := &ccloud.MetricsApiRequest{
 		Aggregations: []ccloud.ApiAggregation{
 			{
@@ -79,6 +97,7 @@ func buildQuery(cmd *cobra.Command) (*ccloud.MetricsApiRequest, error) {
 		Limit:       groupLimit,
 		Granularity: strings.ToUpper(granularity),
 		Intervals:   []string{interval},
+		Format:      format,
 	}
 
 	return request, nil
@@ -120,19 +139,17 @@ func getResourceFilter(cmd *cobra.Command) (*ccloud.ApiFilter, error) {
 
 }
 
-func outputResponse(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response *ccloud.MetricsApiQueryReply) error {
+func outputResponse(cmd *cobra.Command, query *ccloud.MetricsApiRequest, response abstractMetricsApiQueryReply) error {
 	format, err := cmd.Flags().GetString(output.FlagName)
 	if err != nil {
 		return err
 	}
 
 	switch format {
-	case "html":
-		return chartResponse(cmd, query, response)
-	case "csv":
-		panic("TO DO")
+	case "chart-html":
+		return chartResponseAsHtml(cmd, query, response)
 	default:
-		return outputStructured(cmd, query, response)
+		return outputStructured(cmd, query, response.(*ccloud.MetricsApiQueryReply))
 	}
 }
 
