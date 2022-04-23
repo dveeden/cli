@@ -3,6 +3,9 @@ package kafka
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 
 	"github.com/antihax/optional"
 	"github.com/confluentinc/kafka-rest-sdk-go/kafkarestv3"
@@ -14,6 +17,8 @@ import (
 	"github.com/confluentinc/cli/internal/pkg/properties"
 	"github.com/confluentinc/cli/internal/pkg/utils"
 )
+
+const brokerSep = ":"
 
 func (c *authenticatedTopicCommand) newCreateCommandOnPrem() *cobra.Command {
 	cmd := &cobra.Command{
@@ -35,6 +40,7 @@ func (c *authenticatedTopicCommand) newCreateCommandOnPrem() *cobra.Command {
 	cmd.Flags().Int32("partitions", 6, "Number of topic partitions.")
 	cmd.Flags().Int32("replication-factor", 3, "Number of replicas.")
 	cmd.Flags().StringSlice("config", nil, "A comma-separated list of topic configuration ('key=value') overrides for the topic being created.")
+	cmd.Flags().StringSlice("replica-assignment", nil, "A comma-separated list of replicas assignment ('brokerId_1:brokerId_2:...') for the topic being created.")
 	cmd.Flags().Bool("if-not-exists", false, "Exit gracefully if topic already exists.")
 
 	return cmd
@@ -83,17 +89,45 @@ func (c *authenticatedTopicCommand) onPremCreate(cmd *cobra.Command, args []stri
 		}
 		i++
 	}
+
+	replicas, err := cmd.Flags().GetStringSlice("replica-assignment")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%+v\n", replicas)
+
+	replicaAssignments := make([]kafkarestv3.CreateTopicRequestDataReplicasAssignments, len(replicas))
+	for j := 0; j < len(replicas); j++ {
+		brokerList, err := parseBrokerList(replicas[j])
+		if err != nil {
+			return err
+		}
+		replicaAssignments[j] = kafkarestv3.CreateTopicRequestDataReplicasAssignments{
+			PartitionId: int32(j),
+			BrokerIds:   brokerList,
+		}
+	}
+	fmt.Printf("%+v\n", replicaAssignments)
 	// Create new topic
-	_, resp, err := restClient.TopicV3Api.CreateKafkaTopic(restContext, clusterId, &kafkarestv3.CreateKafkaTopicOpts{
-		CreateTopicRequestData: optional.NewInterface(kafkarestv3.CreateTopicRequestData{
-			TopicName:         topicName,
-			PartitionsCount:   numPartitions,
-			ReplicationFactor: replicationFactor,
-			Configs:           topicConfigs,
-		}),
+	req := optional.NewInterface(kafkarestv3.CreateTopicRequestData{
+		TopicName:           topicName,
+		PartitionsCount:     numPartitions,
+		ReplicationFactor:   replicationFactor,
+		ReplicasAssignments: replicaAssignments,
+		Configs:             topicConfigs,
 	})
+	fmt.Printf("%+v\n", req)
+	data, resp, err := restClient.TopicV3Api.CreateKafkaTopic(restContext, clusterId, &kafkarestv3.CreateKafkaTopicOpts{
+		CreateTopicRequestData: req,
+	})
+	fmt.Println(c.AuthToken())
 	if err != nil {
 		// catch topic exists error
+		fmt.Println(data)
+		fmt.Println(resp)
+		b, _ := io.ReadAll(resp.Body)
+		fmt.Println(string(b))
+		fmt.Println(err)
 		if openAPIError, ok := err.(kafkarestv3.GenericOpenAPIError); ok {
 			var decodedError kafkaRestV3Error
 			err2 := json.Unmarshal(openAPIError.Body(), &decodedError)
@@ -112,4 +146,17 @@ func (c *authenticatedTopicCommand) onPremCreate(cmd *cobra.Command, args []stri
 	// no error if topic is created successfully.
 	utils.Printf(cmd, errors.CreatedTopicMsg, topicName)
 	return nil
+}
+
+func parseBrokerList(brokerString string) ([]int32, error) {
+	brokers := strings.Split(brokerString, brokerSep)
+	brokerList := make([]int32, len(brokers))
+	for i := 0; i < len(brokers); i++ {
+		brokerId, err := strconv.ParseInt(brokers[i], 10, 32)
+		if err != nil {
+			return []int32{}, err
+		}
+		brokerList[i] = int32(brokerId)
+	}
+	return brokerList, nil
 }
