@@ -180,6 +180,7 @@ const (
 	// ksql commands
 	KsqlDBNoServiceAccountErrorMsg = "ACLs do not need to be configured for the ksqlDB app, \"%s\", because it was created with user-level access to the Kafka cluster"
 	KsqlDBTerminateClusterMsg      = "Failed to terminate ksqlDB app \"%s\" due to \"%s\".\n"
+	CSUInvalidErrorMsg             = "`--csu` value must be either 1, 2, 4, 8, or 12"
 
 	// local commands
 	NoServicesRunningErrorMsg = "no services running"

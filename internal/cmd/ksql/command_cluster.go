@@ -21,6 +21,7 @@ func newClusterCommand(cfg *v1.Config, prerunner pcmd.PreRunner) *cobra.Command 
 		cmd.AddCommand(c.newDeleteCommand(false))
 		cmd.AddCommand(c.newDescribeCommand(false))
 		cmd.AddCommand(c.newListCommand(false))
+		cmd.AddCommand(c.newUpdateCommand())
 	} else {
 		c := &ksqlCommand{pcmd.NewAuthenticatedWithMDSStateFlagCommand(cmd, prerunner)}
 		cmd.AddCommand(c.newListCommandOnPrem())
