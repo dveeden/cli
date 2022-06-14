@@ -34,12 +34,6 @@ builds:
       - linux
     goarch:
       - amd64
-    hooks:
-      post:
-        - cmd: make download-licenses
-          env:
-            - LICENSE_BIN=confluent
-            - LICENSE_BIN_PATH=./dist/confluent-alpine-amd64_linux_amd64/confluent
   - binary: confluent
     id: signed-amd64
     main: cmd/confluent/main.go
