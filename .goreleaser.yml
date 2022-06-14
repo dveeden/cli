@@ -100,6 +100,9 @@ builds:
         - cmd: make restore-librdkafka-amd64
         - cmd: gon gon_confluent_arm64.hcl
 
+release:
+  disable: true
+
 archives:
   - id: binary
     replacements: 
