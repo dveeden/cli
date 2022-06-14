@@ -14,3 +14,21 @@ builds:
       - all=-trimpath={{.Env.HOME}}/git
     asmflags:
       - all=-trimpath={{.Env.HOME}}/git
+
+archives:
+  - id: binary
+    replacements: 
+      linux: alpine
+    format: binary
+  - id: archive
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    replacements: 
+      linux: alpine
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: "{{ .ProjectName }}"
+    files:
+      - LICENSE
+      - legal/**/*
