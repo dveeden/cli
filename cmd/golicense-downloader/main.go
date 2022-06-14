@@ -59,7 +59,8 @@ func main() {
 
 	// Parse and validate flags
 	pflag.Parse()
-
+	fmt.Println("i'm being called here!")
+	fmt.Fprint(os.Stderr, "I'm being called!")
 	// Validate usage - pipe from golicense
 	info, err := os.Stdin.Stat()
 	if err != nil {
