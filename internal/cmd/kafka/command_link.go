@@ -47,7 +47,7 @@ func newLinkCommand(cfg *v1.Config, prerunner pcmd.PreRunner) *cobra.Command {
 
 func (c *linkCommand) getKafkaRestComponents(cmd *cobra.Command) (*kafkarestv3.APIClient, context.Context, string, error) {
 	if c.cfg.IsCloudLogin() {
-		kafkaRest, err := c.GetKafkaREST()
+		kafkaRest, err := c.GetCLoudKafkaREST()
 		if kafkaRest == nil {
 			if err != nil {
 				return nil, nil, "", err

@@ -55,7 +55,7 @@ func (c *aclCommand) delete(cmd *cobra.Command, _ []string) error {
 		filters = append(filters, convertToFilter(acl.ACLBinding))
 	}
 
-	kafkaREST, _ := c.GetKafkaREST()
+	kafkaREST, _ := c.GetCloudKafkaREST()
 	if kafkaREST != nil {
 		kafkaClusterConfig, err := c.AuthenticatedCLICommand.Context.GetKafkaClusterForCommand()
 		if err != nil {
@@ -63,13 +63,14 @@ func (c *aclCommand) delete(cmd *cobra.Command, _ []string) error {
 		}
 		lkc := kafkaClusterConfig.ID
 
-		kafkaRestURL := kafkaREST.Client.GetConfig().BasePath
+		kafkaRestURL := kafkaREST.Client.GetConfig().Servers[0].URL
 
 		kafkaRestExists := true
 		matchingBindingCount := 0
 		for i, filter := range filters {
-			deleteOpts := aclFilterToClustersClusterIdAclsDeleteOpts(filter)
-			deleteResp, httpResp, err := kafkaREST.Client.ACLV3Api.DeleteKafkaAcls(kafkaREST.Context, lkc, &deleteOpts)
+			deleteAclRequestData := aclFilterToClustersClusterIdAclsDeleteRequestData(filter)
+			req := getDeleteAclRequestWithData(kafkaREST.Client.ACLV3Api.DeleteKafkaAcls(kafkaREST.Context, lkc), deleteAclRequestData)
+			deleteResp, httpResp, err := kafkaREST.Client.ACLV3Api.DeleteKafkaAclsExecute(req)
 
 			if err != nil && httpResp == nil {
 				if i == 0 {

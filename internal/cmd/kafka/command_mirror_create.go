@@ -82,7 +82,7 @@ func (c *mirrorCommand) create(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	kafkaREST, err := c.GetKafkaREST()
+	kafkaREST, err := c.GetCloudKafkaREST()
 	if kafkaREST == nil {
 		if err != nil {
 			return err

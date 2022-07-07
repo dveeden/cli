@@ -57,21 +57,22 @@ func (c *aclCommand) list(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	kafkaREST, _ := c.GetKafkaREST()
+	kafkaREST, _ := c.GetCloudKafkaREST()
 	if kafkaREST != nil {
-		opts := aclBindingToClustersClusterIdAclsGetOpts(acl[0].ACLBinding)
-
 		kafkaClusterConfig, err := c.Context.GetKafkaClusterForCommand()
 		if err != nil {
 			return err
 		}
 		lkc := kafkaClusterConfig.ID
 
-		aclGetResp, httpResp, err := kafkaREST.Client.ACLV3Api.GetKafkaAcls(kafkaREST.Context, lkc, &opts)
+		getAclsRequestData := aclBindingToClustersClusterIdAclsRequestData(acl[0].ACLBinding)
+		req := getGetAclsRequestWithData(kafkaREST.Client.ACLV3Api.GetKafkaAcls(kafkaREST.Context, lkc), getAclsRequestData)
+		aclGetResp, httpResp, err := kafkaREST.Client.ACLV3Api.GetKafkaAclsExecute(req)
 
 		if err != nil && httpResp != nil {
 			// Kafka REST is available, but an error occurred
-			return kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+			return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
+			kafkaREST.Client.GetConfig()
 		}
 
 		if err == nil && httpResp != nil {

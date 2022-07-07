@@ -72,7 +72,7 @@ func (c *aclCommand) create(cmd *cobra.Command, _ []string) error {
 		bindings = append(bindings, acl.ACLBinding)
 	}
 
-	kafkaREST, _ := c.GetKafkaREST()
+	kafkaREST, _ := c.GetCloudKafkaREST()
 	if kafkaREST != nil {
 		kafkaClusterConfig, err := c.AuthenticatedCLICommand.Context.GetKafkaClusterForCommand()
 		if err != nil {
@@ -82,8 +82,8 @@ func (c *aclCommand) create(cmd *cobra.Command, _ []string) error {
 
 		kafkaRestExists := true
 		for i, binding := range bindings {
-			opts := aclBindingToClustersClusterIdAclsPostOpts(binding)
-			httpResp, err := kafkaREST.Client.ACLV3Api.CreateKafkaAcls(kafkaREST.Context, lkc, &opts)
+			createAclRequestData := aclBindingToClustersClusterIdAclsRequestData(binding)
+			httpResp, err := kafkaREST.Client.ACLV3Api.CreateKafkaAcls(kafkaREST.Context, lkc).CreateAclRequestData(createAclRequestData).Execute()
 
 			if err != nil && httpResp == nil {
 				if i == 0 {
@@ -93,7 +93,7 @@ func (c *aclCommand) create(cmd *cobra.Command, _ []string) error {
 				}
 				// i > 0: unlikely
 				_ = aclutil.PrintACLsWithResourceIdMap(cmd, bindings[:i], os.Stdout, resourceIdMap)
-				return kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+				return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 			}
 
 			if err != nil {
@@ -101,7 +101,7 @@ func (c *aclCommand) create(cmd *cobra.Command, _ []string) error {
 					// unlikely
 					_ = aclutil.PrintACLsWithResourceIdMap(cmd, bindings[:i], os.Stdout, resourceIdMap)
 				}
-				return kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+				return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 			}
 
 			if httpResp != nil && httpResp.StatusCode != http.StatusCreated {

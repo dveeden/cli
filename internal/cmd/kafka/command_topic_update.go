@@ -62,7 +62,7 @@ func (c *authenticatedTopicCommand) update(cmd *cobra.Command, args []string) er
 		return err
 	}
 
-	kafkaREST, _ := c.GetKafkaREST()
+	kafkaREST, _ := c.GetCloudKafkaREST()
 	if kafkaREST != nil && !dryRun {
 		kafkaRestConfigs := toAlterConfigBatchRequestData(configMap)
 
@@ -85,7 +85,7 @@ func (c *authenticatedTopicCommand) update(cmd *cobra.Command, args []string) er
 					return fmt.Errorf(errors.UnknownTopicErrorMsg, topicName)
 				}
 			}
-			return kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+			return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 		}
 
 		if err == nil && httpResp != nil {

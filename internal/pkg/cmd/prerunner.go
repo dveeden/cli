@@ -61,17 +61,20 @@ type CLICommand struct {
 	prerunner PreRunner
 }
 
-type KafkaRESTProvider func() (*KafkaREST, error)
+type CloudKafkaRESTProvider func() (*CloudKafkaREST, error)
+
+type OnPremKafkaRESTProvider func() (*OnPremKafkaREST, error)
 
 type AuthenticatedCLICommand struct {
 	*CLICommand
-	Client            *ccloud.Client
-	V2Client          *ccloudv2.Client
-	MDSClient         *mds.APIClient
-	MDSv2Client       *mdsv2alpha1.APIClient
-	KafkaRESTProvider *KafkaRESTProvider
-	Context           *dynamicconfig.DynamicContext
-	State             *v1.ContextState
+	Client                  *ccloud.Client
+	V2Client                *ccloudv2.Client
+	MDSClient               *mds.APIClient
+	MDSv2Client             *mdsv2alpha1.APIClient
+	CloudKafkaRESTProvider  *CloudKafkaRESTProvider
+	OnPremKafkaRESTProvider *OnPremKafkaRESTProvider
+	Context                 *dynamicconfig.DynamicContext
+	State                   *v1.ContextState
 }
 
 type AuthenticatedStateFlagCommand struct {
@@ -158,8 +161,12 @@ func (s *StateFlagCommand) AddCommand(command *cobra.Command) {
 	s.Command.AddCommand(command)
 }
 
-func (c *AuthenticatedCLICommand) GetKafkaREST() (*KafkaREST, error) {
-	return (*c.KafkaRESTProvider)()
+func (c *AuthenticatedCLICommand) GetCloudKafkaREST() (*CloudKafkaREST, error) {
+	return (*c.CloudKafkaRESTProvider)()
+}
+
+func (c *AuthenticatedCLICommand) GetOnPremKafkaREST() (*OnPremKafkaREST, error) {
+	return (*c.OnPremKafkaRESTProvider)()
 }
 
 func (c *AuthenticatedCLICommand) AuthToken() string {
@@ -414,7 +421,7 @@ func (r *PreRun) setCCloudClient(cliCmd *AuthenticatedCLICommand) error {
 	cliCmd.Context.Client = ccloudClient
 	cliCmd.Config.Client = ccloudClient
 	cliCmd.MDSv2Client = r.createMDSv2Client(ctx, cliCmd.Version)
-	provider := (KafkaRESTProvider)(func() (*KafkaREST, error) {
+	provider := (CloudKafkaRESTProvider)(func() (*CloudKafkaREST, error) {
 		ctx := cliCmd.Config.Context()
 
 		restEndpoint, lkc, err := getKafkaRestEndpoint(ctx)
@@ -422,8 +429,8 @@ func (r *PreRun) setCCloudClient(cliCmd *AuthenticatedCLICommand) error {
 			return nil, err
 		}
 		if restEndpoint != "" {
-			result := &KafkaREST{}
-			result.Client, err = createKafkaRESTClient(restEndpoint)
+			result := &CloudKafkaREST{}
+			result.Client, err = createKafkaRESTClient(restEndpoint, cliCmd.Version.UserAgent, r.IsTest)
 			if err != nil {
 				return nil, err
 			}
@@ -440,7 +447,7 @@ func (r *PreRun) setCCloudClient(cliCmd *AuthenticatedCLICommand) error {
 		}
 		return nil, nil
 	})
-	cliCmd.KafkaRESTProvider = &provider
+	cliCmd.CloudKafkaRESTProvider = &provider
 	return nil
 }
 
@@ -449,7 +456,7 @@ func (r *PreRun) setV2Clients(cliCmd *AuthenticatedCLICommand) error {
 	if ctx == nil {
 		return new(errors.NotLoggedInError)
 	}
-
+	// fmt.Println("base url:", ctx.Platform.Server)
 	v2Client := ccloudv2.NewClient(ctx.Platform.Server, cliCmd.Version.UserAgent, r.IsTest, cliCmd.AuthToken())
 	state, err := ctx.AuthenticatedState()
 	if err != nil {
@@ -646,7 +653,7 @@ func (r *PreRun) InitializeOnPremKafkaRest(command *AuthenticatedCLICommand) fun
 		err := r.AuthenticatedWithMDS(command)(cmd, args)
 		useMdsToken := err == nil
 
-		provider := (KafkaRESTProvider)(func() (*KafkaREST, error) {
+		provider := (OnPremKafkaRESTProvider)(func() (*OnPremKafkaREST, error) {
 			cfg := kafkarestv3.NewConfiguration()
 			restFlags, err := resolveOnPremKafkaRestFlags(cmd)
 			if err != nil {
@@ -658,7 +665,7 @@ func (r *PreRun) InitializeOnPremKafkaRest(command *AuthenticatedCLICommand) fun
 			}
 			client := kafkarestv3.NewAPIClient(cfg)
 			if restFlags.noAuth || restFlags.clientCertPath != "" { // credentials not needed for mTLS auth
-				return &KafkaREST{
+				return &OnPremKafkaREST{
 					Client:  client,
 					Context: context.Background(),
 				}, nil
@@ -680,12 +687,12 @@ func (r *PreRun) InitializeOnPremKafkaRest(command *AuthenticatedCLICommand) fun
 				}
 				restContext = context.WithValue(context.Background(), kafkarestv3.ContextBasicAuth, kafkarestv3.BasicAuth{UserName: f.Responses["username"].(string), Password: f.Responses["password"].(string)})
 			}
-			return &KafkaREST{
+			return &OnPremKafkaREST{
 				Client:  client,
 				Context: restContext,
 			}, nil
 		})
-		command.KafkaRESTProvider = &provider
+		command.OnPremKafkaRESTProvider = &provider
 		return nil
 	}
 }
@@ -967,12 +974,4 @@ func (r *PreRun) createMDSv2Client(ctx *dynamicconfig.DynamicContext, ver *versi
 		mdsv2Config.HTTPClient = client
 	}
 	return mdsv2alpha1.NewAPIClient(mdsv2Config)
-}
-
-func createKafkaRESTClient(kafkaRestURL string) (*kafkarestv3.APIClient, error) {
-	cfg := kafkarestv3.NewConfiguration()
-	cfg.HTTPClient = utils.DefaultClient()
-	cfg.Debug = log.CliLogger.Level >= log.DEBUG
-	cfg.BasePath = kafkaRestURL + "/kafka/v3"
-	return kafkarestv3.NewAPIClient(cfg), nil
 }

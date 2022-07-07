@@ -69,7 +69,7 @@ func (c *authenticatedTopicCommand) create(cmd *cobra.Command, args []string) er
 		return err
 	}
 
-	kafkaREST, _ := c.GetKafkaREST()
+	kafkaREST, _ := c.GetCloudKafkaREST()
 	if kafkaREST != nil && !dryRun {
 		topicConfigs := make([]kafkarestv3.CreateTopicRequestDataConfigs, len(configMap))
 		i := 0
@@ -111,7 +111,7 @@ func (c *authenticatedTopicCommand) create(cmd *cobra.Command, args []string) er
 					return nil
 				}
 			}
-			return kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+			return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 		}
 
 		if err == nil && httpResp != nil {

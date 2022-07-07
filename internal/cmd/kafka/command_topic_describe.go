@@ -53,7 +53,7 @@ func (c *authenticatedTopicCommand) describe(cmd *cobra.Command, args []string) 
 		return output.NewInvalidOutputFormatFlagError(outputOption)
 	}
 
-	kafkaREST, _ := c.GetKafkaREST()
+	kafkaREST, _ := c.GetCloudKafkaREST()
 	if kafkaREST != nil {
 		kafkaClusterConfig, err := c.AuthenticatedCLICommand.Context.GetKafkaClusterForCommand()
 		if err != nil {
@@ -71,7 +71,7 @@ func (c *authenticatedTopicCommand) describe(cmd *cobra.Command, args []string) 
 					return fmt.Errorf(errors.UnknownTopicErrorMsg, topicName)
 				}
 			}
-			return kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+			return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 		}
 
 		if err == nil && httpResp != nil {
@@ -88,7 +88,7 @@ func (c *authenticatedTopicCommand) describe(cmd *cobra.Command, args []string) 
 			// Get topic config
 			configsResp, httpResp, err := kafkaREST.Client.ConfigsV3Api.ListKafkaTopicConfigs(kafkaREST.Context, lkc, topicName)
 			if err != nil {
-				return kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+				return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 			} else if configsResp.Data == nil {
 				return errors.NewErrorWithSuggestions(errors.EmptyResponseMsg, errors.InternalServerErrorSuggestions)
 			}
