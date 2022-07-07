@@ -5,9 +5,9 @@ import (
 
 	"github.com/confluentinc/go-printer"
 	"github.com/confluentinc/go-printer/tables"
-	"github.com/confluentinc/kafka-rest-sdk-go/kafkarestv3"
 	"github.com/spf13/cobra"
 
+	cloudkafkarestv3 "github.com/confluentinc/ccloud-sdk-go-v2/kafkarest/v3"
 	pcmd "github.com/confluentinc/cli/internal/pkg/cmd"
 	"github.com/confluentinc/cli/internal/pkg/examples"
 	"github.com/confluentinc/cli/internal/pkg/output"
@@ -53,12 +53,12 @@ func (c *consumerGroupCommand) describe(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	groupCmdResp, httpResp, err := kafkaREST.Client.ConsumerGroupV3Api.GetKafkaConsumerGroup(kafkaREST.Context, lkc, consumerGroupId)
+	groupCmdResp, httpResp, err := kafkaREST.Client.ConsumerGroupV3Api.GetKafkaConsumerGroup(kafkaREST.Context, lkc, consumerGroupId).Execute()
 	if err != nil {
 		return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 	}
 
-	groupCmdConsumersResp, httpResp, err := kafkaREST.Client.ConsumerGroupV3Api.ListKafkaConsumers(kafkaREST.Context, lkc, consumerGroupId)
+	groupCmdConsumersResp, httpResp, err := kafkaREST.Client.ConsumerGroupV3Api.ListKafkaConsumers(kafkaREST.Context, lkc, consumerGroupId).Execute()
 	if err != nil {
 		return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 	}
@@ -77,7 +77,7 @@ func (c *consumerGroupCommand) describe(cmd *cobra.Command, args []string) error
 	return output.StructuredOutputForCommand(cmd, outputOption, groupData)
 }
 
-func getGroupData(groupCmdResp kafkarestv3.ConsumerGroupData, groupCmdConsumersResp kafkarestv3.ConsumerDataList) *groupData {
+func getGroupData(groupCmdResp cloudkafkarestv3.ConsumerGroupData, groupCmdConsumersResp cloudkafkarestv3.ConsumerDataList) *groupData {
 	groupData := &groupData{
 		ClusterId:         groupCmdResp.ClusterId,
 		ConsumerGroupId:   groupCmdResp.ConsumerGroupId,
@@ -91,8 +91,8 @@ func getGroupData(groupCmdResp kafkarestv3.ConsumerGroupData, groupCmdConsumersR
 	// Populate consumers list
 	for i, consumerResp := range groupCmdConsumersResp.Data {
 		instanceId := ""
-		if consumerResp.InstanceId != nil {
-			instanceId = *consumerResp.InstanceId
+		if consumerResp.InstanceId.IsSet() {
+			instanceId = *consumerResp.InstanceId.Get()
 		}
 		consumerData := consumerData{
 			ConsumerGroupId: groupCmdResp.ConsumerGroupId,
@@ -106,7 +106,7 @@ func getGroupData(groupCmdResp kafkarestv3.ConsumerGroupData, groupCmdConsumersR
 	return groupData
 }
 
-func getStringBroker(relationship kafkarestv3.Relationship) string {
+func getStringBroker(relationship cloudkafkarestv3.Relationship) string {
 	// relationship.Related will look like ".../v3/clusters/{cluster_id}/brokers/{broker_id}
 	splitString := strings.SplitAfter(relationship.Related, "brokers/")
 	// if relationship was an empty string or did not contain "brokers/"

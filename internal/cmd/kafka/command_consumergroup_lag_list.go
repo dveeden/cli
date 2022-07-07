@@ -40,7 +40,7 @@ func (c *lagCommand) list(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	lagSummaryResp, httpResp, err := kafkaREST.Client.ConsumerGroupV3Api.ListKafkaConsumerLags(kafkaREST.Context, lkc, consumerGroupId)
+	lagSummaryResp, httpResp, err := kafkaREST.Client.ConsumerGroupV3Api.ListKafkaConsumerLags(kafkaREST.Context, lkc, consumerGroupId).Execute()
 	if err != nil {
 		return kafkaRestError(kafkaREST.Client.GetConfig().Servers[0].URL, err, httpResp)
 	}

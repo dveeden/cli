@@ -121,9 +121,9 @@ func aclFilterToClustersClusterIdAclsDeleteRequestData(acl *schedv1.ACLFilter) c
 }
 
 func getDeleteAclRequestWithData(req cloudkafkarestv3.ApiDeleteKafkaAclsRequest, requestData cloudkafkarestv3.CreateAclRequestData) cloudkafkarestv3.ApiDeleteKafkaAclsRequest {
-	return req.ResourceType(deleteRequestData.ResourceType).PatternType(deleteRequestData.PatternType).Principal(deleteRequestData.Principal).Host(deleteRequestData.Host).Operation(deleteRequestData.Operation).Permission(deleteRequestData.Permission)
+	return req.ResourceType(requestData.ResourceType).PatternType(requestData.PatternType).Principal(requestData.Principal).Host(requestData.Host).Operation(requestData.Operation).Permission(requestData.Permission)
 }
 
 func getGetAclsRequestWithData(req cloudkafkarestv3.ApiGetKafkaAclsRequest, requestData cloudkafkarestv3.CreateAclRequestData) cloudkafkarestv3.ApiGetKafkaAclsRequest {
-	return req.ResourceType(deleteRequestData.ResourceType).PatternType(deleteRequestData.PatternType).Principal(deleteRequestData.Principal).Host(deleteRequestData.Host).Operation(deleteRequestData.Operation).Permission(deleteRequestData.Permission)
+	return req.ResourceType(requestData.ResourceType).PatternType(requestData.PatternType).Principal(requestData.Principal).Host(requestData.Host).Operation(requestData.Operation).Permission(requestData.Permission)
 }

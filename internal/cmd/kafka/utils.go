@@ -104,7 +104,7 @@ func handleOpenApiError(httpResp *_nethttp.Response, err error, client *kafkares
 	return err
 }
 
-func getKafkaRestProxyAndLkcId(c *pcmd.AuthenticatedStateFlagCommand) (*pcmd.KafkaREST, string, error) {
+func getKafkaRestProxyAndLkcId(c *pcmd.AuthenticatedStateFlagCommand) (*pcmd.CloudKafkaREST, string, error) {
 	kafkaREST, err := c.AuthenticatedCLICommand.GetCloudKafkaREST()
 	if err != nil {
 		return nil, "", err
