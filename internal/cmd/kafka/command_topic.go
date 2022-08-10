@@ -154,7 +154,7 @@ func (c *authenticatedTopicCommand) getNumPartitions(lkc, topicName string) (int
 		if err == nil && httpResp != nil {
 			if httpResp.StatusCode != http.StatusOK {
 				return 0, errors.NewErrorWithSuggestions(
-					fmt.Sprintf(errors.KafkaRestUnexpectedStatusMsg, httpResp.Request.URL, httpResp.StatusCode),
+					fmt.Sprintf(errors.KafkaRestUnexpectedStatusErrorMsg, httpResp.Request.URL, httpResp.StatusCode),
 					errors.InternalServerErrorSuggestions)
 			}
 
