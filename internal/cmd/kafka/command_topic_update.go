@@ -138,7 +138,7 @@ func (c *authenticatedTopicCommand) update(cmd *cobra.Command, args []string) er
 				return err
 			}
 			if hasNumPartitionsChanged {
-				numPartitions, err := c.getNumPartitions(topicName)
+				numPartitions, err := c.getNumPartitions(lkc, topicName)
 				if err != nil {
 					return err
 				}

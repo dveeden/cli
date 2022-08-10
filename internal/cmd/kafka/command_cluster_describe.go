@@ -16,76 +16,84 @@ import (
 )
 
 var (
-	basicDescribeFields                = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "RestEndpoint"}
-	basicDescribeFieldsWithApiEndpoint = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "ApiEndpoint", "RestEndpoint"}
+	basicDescribeFields                = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "RestEndpoint", "TopicCount", "TotalPartitionCount"}
+	basicDescribeFieldsWithApiEndpoint = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "ApiEndpoint", "RestEndpoint", "TopicCount", "TotalPartitionCount"}
 
 	describeHumanRenames = map[string]string{
-		"ApiEndpoint":        "API Endpoint",
-		"ClusterSize":        "Cluster Size",
-		"EncryptionKeyId":    "Encryption Key ID",
-		"Id":                 "ID",
-		"NetworkEgress":      "Egress",
-		"NetworkIngress":     "Ingress",
-		"PendingClusterSize": "Pending Cluster Size",
-		"RestEndpoint":       "REST Endpoint",
-		"ServiceProvider":    "Provider",
+		"ApiEndpoint":         "API Endpoint",
+		"ClusterSize":         "Cluster Size",
+		"EncryptionKeyId":     "Encryption Key ID",
+		"Id":                  "ID",
+		"NetworkEgress":       "Egress",
+		"NetworkIngress":      "Ingress",
+		"PendingClusterSize":  "Pending Cluster Size",
+		"RestEndpoint":        "REST Endpoint",
+		"ServiceProvider":     "Provider",
+		"TopicCount":          "Topic Count",
+		"TotalPartitionCount": "Total Partition Count",
 	}
 	describeStructuredRenames = map[string]string{
-		"Id":                 "id",
-		"Name":               "name",
-		"Type":               "type",
-		"ClusterSize":        "cluster_size",
-		"PendingClusterSize": "pending_cluster_size",
-		"NetworkIngress":     "ingress",
-		"NetworkEgress":      "egress",
-		"Storage":            "storage",
-		"ServiceProvider":    "provider",
-		"Region":             "region",
-		"Availability":       "availability",
-		"Status":             "status",
-		"Endpoint":           "endpoint",
-		"ApiEndpoint":        "api_endpoint",
-		"EncryptionKeyId":    "encryption_key_id",
-		"RestEndpoint":       "rest_endpoint",
+		"Id":                  "id",
+		"Name":                "name",
+		"Type":                "type",
+		"ClusterSize":         "cluster_size",
+		"PendingClusterSize":  "pending_cluster_size",
+		"NetworkIngress":      "ingress",
+		"NetworkEgress":       "egress",
+		"Storage":             "storage",
+		"ServiceProvider":     "provider",
+		"Region":              "region",
+		"Availability":        "availability",
+		"Status":              "status",
+		"Endpoint":            "endpoint",
+		"ApiEndpoint":         "api_endpoint",
+		"EncryptionKeyId":     "encryption_key_id",
+		"RestEndpoint":        "rest_endpoint",
+		"TopicCount":          "topic_count",
+		"TotalPartitionCount": "total_partition_count",
 	}
 )
 
 type describeStruct struct {
-	Id                 string
-	Name               string
-	Type               string
-	ClusterSize        int32
-	PendingClusterSize int32
-	NetworkIngress     int32
-	NetworkEgress      int32
-	Storage            string
-	ServiceProvider    string
-	Region             string
-	Availability       string
-	Status             string
-	Endpoint           string
-	ApiEndpoint        string
-	EncryptionKeyId    string
-	RestEndpoint       string
+	Id                  string
+	Name                string
+	Type                string
+	ClusterSize         int32
+	PendingClusterSize  int32
+	NetworkIngress      int32
+	NetworkEgress       int32
+	Storage             string
+	ServiceProvider     string
+	Region              string
+	Availability        string
+	Status              string
+	Endpoint            string
+	ApiEndpoint         string
+	EncryptionKeyId     string
+	RestEndpoint        string
+	TopicCount          int32
+	TotalPartitionCount int32
 }
 
 type describeStructWithKAPI struct {
-	Id                 string
-	Name               string
-	Type               string
-	ClusterSize        int32
-	PendingClusterSize int32
-	NetworkIngress     int32
-	NetworkEgress      int32
-	Storage            string
-	ServiceProvider    string
-	Region             string
-	Availability       string
-	Status             string
-	Endpoint           string
-	EncryptionKeyId    string
-	RestEndpoint       string
-	KAPI               string
+	Id                  string
+	Name                string
+	Type                string
+	ClusterSize         int32
+	PendingClusterSize  int32
+	NetworkIngress      int32
+	NetworkEgress       int32
+	Storage             string
+	ServiceProvider     string
+	Region              string
+	Availability        string
+	Status              string
+	Endpoint            string
+	EncryptionKeyId     string
+	RestEndpoint        string
+	KAPI                string
+	TopicCount          int32
+	TotalPartitionCount int32
 }
 
 func (c *clusterCommand) newDescribeCommand(cfg *v1.Config) *cobra.Command {

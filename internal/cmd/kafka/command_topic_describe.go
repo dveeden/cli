@@ -90,7 +90,7 @@ func (c *authenticatedTopicCommand) describe(cmd *cobra.Command, args []string) 
 			for _, config := range configsResp.Data {
 				topicData.Config[config.Name] = *config.Value
 			}
-			numPartitions, err := c.getNumPartitions(topicName)
+			numPartitions, err := c.getNumPartitions(lkc, topicName)
 			if err != nil {
 				return err
 			}

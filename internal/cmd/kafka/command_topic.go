@@ -137,15 +137,10 @@ func (c *hasAPIKeyTopicCommand) validateTopic(client *ckafka.AdminClient, topic 
 	return nil
 }
 
-func (c *authenticatedTopicCommand) getNumPartitions(topicName string) (int, error) {
+func (c *authenticatedTopicCommand) getNumPartitions(lkc, topicName string) (int, error) {
 	kafkaREST, _ := c.GetKafkaREST()
 	if kafkaREST != nil {
-		kafkaClusterConfig, err := c.AuthenticatedCLICommand.Context.GetKafkaClusterForCommand()
-		if err != nil {
-			return 0, err
-		}
-
-		partitionsResp, httpResp, err := kafkaREST.Client.PartitionV3Api.ListKafkaPartitions(kafkaREST.Context, kafkaClusterConfig.ID, topicName)
+		partitionsResp, httpResp, err := kafkaREST.Client.PartitionV3Api.ListKafkaPartitions(kafkaREST.Context, lkc, topicName)
 		if err != nil && httpResp != nil {
 			// Kafka REST is available, but there was an error
 			restErr, parseErr := parseOpenAPIError(err)
@@ -180,4 +175,48 @@ func (c *authenticatedTopicCommand) getNumPartitions(topicName string) (int, err
 	}
 
 	return len(resp.Partitions), nil
+}
+
+func (c *authenticatedTopicCommand) getTotalNumPartitions(lkc string) (int, int, error) {
+	var topicCount, partitionCount int
+
+	kafkaREST, _ := c.GetKafkaREST()
+	if kafkaREST != nil {
+		topicGetResp, httpResp, err := kafkaREST.Client.TopicV3Api.ListKafkaTopics(kafkaREST.Context, lkc)
+		if err != nil && httpResp != nil {
+			// Kafka REST is available, but an error occurred
+			return 0, 0, kafkaRestError(kafkaREST.Client.GetConfig().BasePath, err, httpResp)
+		}
+
+		if err == nil && httpResp != nil {
+			if httpResp.StatusCode != http.StatusOK {
+				return 0, 0, errors.NewErrorWithSuggestions(
+					fmt.Sprintf(errors.KafkaRestUnexpectedStatusErrorMsg, httpResp.Request.URL, httpResp.StatusCode),
+					errors.InternalServerErrorSuggestions)
+			}
+
+			topicCount = len(topicGetResp.Data)
+			for _, topicData := range topicGetResp.Data {
+				topicPartitionCount, err := c.getNumPartitions(lkc, topicData.TopicName)
+				if err != nil {
+					return 0, 0, err
+				}
+				partitionCount += topicPartitionCount
+			}
+
+			return topicCount, partitionCount, nil
+		}
+	}
+
+	// Kafka REST is not available, fall back to KafkaAPI
+	topicGetRespV1, err := c.getTopics()
+	if err != nil {
+		return 0, 0, err
+	}
+	topicCount = len(topicGetRespV1)
+	for _, topic := range topicGetRespV1 {
+		partitionCount += len(topic.Partitions)
+	}
+
+	return topicCount, partitionCount, nil
 }
