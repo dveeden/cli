@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	basicDescribeFields                = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "RestEndpoint"}                //, "TopicCount", "TotalPartitionCount"}
-	basicDescribeFieldsWithApiEndpoint = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "ApiEndpoint", "RestEndpoint"} //, "TopicCount", "TotalPartitionCount"}
-	basicDescribeFieldsWithKAPI        = append(basicDescribeFields, "KAPI")
+	basicDescribeFields                = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "RestEndpoint"}
+	basicDescribeFieldsWithApiEndpoint = []string{"Id", "Name", "Type", "NetworkIngress", "NetworkEgress", "Storage", "ServiceProvider", "Availability", "Region", "Status", "Endpoint", "ApiEndpoint", "RestEndpoint"}
+	basicDescribeFieldsWithCounts      = append(basicDescribeFields, "TopicCount", "TotalPartitionCount")
+	basicDescribeFieldsWithCountsKAPI  = append(basicDescribeFields, "KAPI", "TopicCount", "TotalPartitionCount")
 
 	describeHumanRenames = map[string]string{
 		"ApiEndpoint":         "API Endpoint",
@@ -74,8 +75,8 @@ type describeStruct struct {
 	EncryptionKeyId     string
 	RestEndpoint        string
 	KAPI                string
-	TopicCount          int32
-	TotalPartitionCount int32
+	TopicCount          int
+	TotalPartitionCount int
 }
 
 func (c *clusterCommand) newDescribeCommand(cfg *v1.Config) *cobra.Command {
@@ -132,16 +133,22 @@ func (c *clusterCommand) getLkcForDescribe(args []string) (string, error) {
 
 func (c *clusterCommand) outputKafkaClusterDescriptionWithKAPI(cmd *cobra.Command, cluster *cmkv2.CmkV2Cluster, all bool) error {
 	describeStruct := convertClusterToDescribeStruct(cluster)
+	topicCount, totalPartitionCount, err := c.getTotalNumPartitions(cluster)
+	if err != nil {
+		return err
+	}
+	describeStruct.TopicCount = topicCount
+	describeStruct.TotalPartitionCount = totalPartitionCount
 	if all { // expose KAPI when --all flag is set
 		kAPI, err := c.getCmkClusterApiEndpoint(cluster)
 		if err != nil {
 			return err
 		}
 		describeStruct.KAPI = kAPI
-		return output.DescribeObject(cmd, describeStruct, getKafkaClusterDescribeFields(cluster, basicDescribeFieldsWithKAPI), describeHumanRenames, describeStructuredRenames)
+		return output.DescribeObject(cmd, describeStruct, getKafkaClusterDescribeFields(cluster, basicDescribeFieldsWithCountsKAPI), describeHumanRenames, describeStructuredRenames)
 	}
 
-	return output.DescribeObject(cmd, describeStruct, getKafkaClusterDescribeFields(cluster, basicDescribeFields), describeHumanRenames, describeStructuredRenames)
+	return output.DescribeObject(cmd, describeStruct, getKafkaClusterDescribeFields(cluster, basicDescribeFieldsWithCounts), describeHumanRenames, describeStructuredRenames)
 }
 
 func (c *clusterCommand) outputKafkaClusterDescription(cmd *cobra.Command, cluster *cmkv2.CmkV2Cluster) error {
@@ -207,4 +214,27 @@ func (c *clusterCommand) getCmkClusterApiEndpoint(cluster *cmkv2.CmkV2Cluster) (
 		return "", errors.CatchKafkaNotFoundError(err, lkc, nil)
 	}
 	return kafkaCluster.ApiEndpoint, nil
+}
+
+func (c *clusterCommand) getTotalNumPartitions(cluster *cmkv2.CmkV2Cluster) (int, int, error) {
+	var partitionCount int
+
+	apiEndpoint, err := c.getCmkClusterApiEndpoint(cluster)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	lkc := *cluster.Id
+	req := &schedv1.KafkaCluster{AccountId: c.EnvironmentId(), Id: lkc, ApiEndpoint: apiEndpoint}
+	topicList, err := c.Client.Kafka.ListTopics(context.Background(), req)
+	if err != nil {
+		return 0, 0, errors.CatchKafkaNotFoundError(err, lkc, nil)
+	}
+
+	topicCount := len(topicList)
+	for _, topic := range topicList {
+		partitionCount += len(topic.Partitions)
+	}
+
+	return topicCount, partitionCount, nil
 }
