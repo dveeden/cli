@@ -11,8 +11,8 @@ import (
 
 	corev1 "github.com/confluentinc/cc-structs/kafka/core/v1"
 	"github.com/confluentinc/ccloud-sdk-go-v1"
+	mdsv2alpha1 "github.com/confluentinc/ccloud-sdk-go-v1-public/mdsv2alpha1"
 	mds "github.com/confluentinc/mds-sdk-go/mdsv1"
-	"github.com/confluentinc/mds-sdk-go/mdsv2alpha1"
 	srsdk "github.com/confluentinc/schema-registry-sdk-go"
 	"github.com/pkg/errors"
 )
@@ -130,9 +130,10 @@ func catchOpenAPIError(err error) error {
 
 /*
 Error: 1 error occurred:
-	* error creating ACLs: reply error: invalid character 'C' looking for beginning of value
+  - error creating ACLs: reply error: invalid character 'C' looking for beginning of value
+
 Error: 1 error occurred:
-	* error updating topic ENTERPRISE.LOANALT2-ALTERNATE-LOAN-MASTER-2.DLQ: reply error: invalid character '<' looking for beginning of value
+  - error updating topic ENTERPRISE.LOANALT2-ALTERNATE-LOAN-MASTER-2.DLQ: reply error: invalid character '<' looking for beginning of value
 */
 func catchCCloudBackendUnmarshallingError(err error) error {
 	backendUnmarshllingErrorRegex := regexp.MustCompile(`reply error: invalid character '.' looking for beginning of value`)
@@ -308,7 +309,7 @@ func isResourceNotFoundError(err error) bool {
 
 /*
 Error: 1 error occurred:
-	* error creating topic bob: Topic 'bob' already exists.
+  - error creating topic bob: Topic 'bob' already exists.
 */
 func CatchTopicExistsError(err error, clusterId string, topicName string, ifNotExistsFlag bool) error {
 	if err == nil {
@@ -343,9 +344,10 @@ func CatchProduceToCompactedTopicError(err error, topicName string) (bool, error
 
 /*
 Error: 1 error occurred:
-	* error listing topics: Authentication failed: 1 extensions are invalid! They are: logicalCluster: Authentication failed
+  - error listing topics: Authentication failed: 1 extensions are invalid! They are: logicalCluster: Authentication failed
+
 Error: 1 error occurred:
-	* error creating topic test-topic: Authentication failed: 1 extensions are invalid! They are: logicalCluster: Authentication failed
+  - error creating topic test-topic: Authentication failed: 1 extensions are invalid! They are: logicalCluster: Authentication failed
 */
 func CatchClusterNotReadyError(err error, clusterId string) error {
 	if err == nil {

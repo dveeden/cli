@@ -3,7 +3,7 @@ package mock
 import (
 	"os"
 
-	"github.com/confluentinc/mds-sdk-go/mdsv2alpha1"
+	mdsv2alpha1 "github.com/confluentinc/ccloud-sdk-go-v1-public/mdsv2alpha1"
 
 	"github.com/confluentinc/ccloud-sdk-go-v1"
 	servicequotav1 "github.com/confluentinc/ccloud-sdk-go-v2/service-quota/v1"

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	mdsv2alpha1 "github.com/confluentinc/ccloud-sdk-go-v1-public/mdsv2alpha1"
 	"github.com/confluentinc/mds-sdk-go/mdsv1"
-	"github.com/confluentinc/mds-sdk-go/mdsv2alpha1"
 	"github.com/stretchr/testify/require"
 )
 
