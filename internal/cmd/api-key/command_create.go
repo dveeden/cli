@@ -217,13 +217,8 @@ func (c *command) catchServiceAccountNotValidError(err error, r *http.Response, 
 
 	isInvalid := err.Error() == "error creating api key: service account is not valid" || err.Error() == "403 Forbidden"
 	if isInvalid && clusterId == auditLog.GetClusterId() {
-		auditLogServiceAccount, err2 := c.PrivateClient.User.GetServiceAccount(context.Background(), auditLog.GetServiceAccountId())
-		if err2 != nil {
-			return err
-		}
-
-		if serviceAccountId != auditLogServiceAccount.GetResourceId() {
-			return fmt.Errorf(`API keys for audit logs (limit of 2) must be created using the predefined service account, "%s"`, auditLogServiceAccount.GetResourceId())
+		if serviceAccountId != auditLog.GetServiceAccountResourceId() {
+			return fmt.Errorf(`API keys for audit logs (limit of 2) must be created using the predefined service account, "%s"`, auditLog.GetServiceAccountResourceId())
 		}
 	}
 

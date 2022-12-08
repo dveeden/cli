@@ -1,8 +1,6 @@
 package auditlog
 
 import (
-	"context"
-
 	pcmd "github.com/confluentinc/cli/internal/pkg/cmd"
 	v1 "github.com/confluentinc/cli/internal/pkg/config/v1"
 	"github.com/confluentinc/cli/internal/pkg/errors"
@@ -44,16 +42,11 @@ func (c describeCmd) describe(cmd *cobra.Command, _ []string) error {
 
 	auditLog := c.Context.GetOrganization().GetAuditLog()
 
-	serviceAccount, err := c.PrivateClient.User.GetServiceAccount(context.Background(), auditLog.GetServiceAccountId())
-	if err != nil {
-		return err
-	}
-
 	table := output.NewTable(cmd)
 	table.Add(&out{
 		ClusterId:        auditLog.GetClusterId(),
 		EnvironmentId:    auditLog.GetAccountId(),
-		ServiceAccountId: serviceAccount.GetResourceId(),
+		ServiceAccountId: auditLog.GetServiceAccountResourceId(),
 		TopicName:        auditLog.GetTopicName(),
 	})
 	return table.Print()
