@@ -104,7 +104,7 @@ func (c *ksqlCommand) getServiceAccount(cluster *ksqlv2.KsqldbcmV2Cluster) (stri
 
 	for _, user := range users {
 		if user.ServiceName == fmt.Sprintf("KSQL.%s", cluster.GetId()) || user.ResourceId == credentialIdentity {
-			return strconv.Itoa(int(user.Id)), nil
+			return strconv.Itoa(int(user.Id)), nil // get the 6-digit numeric id.
 		}
 	}
 	return "", errors.Errorf(errors.KsqlDBNoServiceAccountErrorMsg, cluster.GetId())

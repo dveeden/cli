@@ -82,7 +82,7 @@ func (c *command) validArgs(cmd *cobra.Command, args []string) []string {
 	return pcmd.AutocompleteApiKeys(c.EnvironmentId(), c.V2Client)
 }
 
-func (c *command) getAllUsers() ([]*orgv1.User, error) {
+func (c *command) getAllUsers() ([]*orgv1.User, error) { // to change when api-key works for all keys and i can remove v1create and v1delete
 	users, err := c.PrivateClient.User.GetServiceAccounts(context.Background())
 	if err != nil {
 		return nil, err

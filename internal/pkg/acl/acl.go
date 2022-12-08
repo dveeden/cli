@@ -339,6 +339,7 @@ func PrintACLsWithResourceIdMap(cmd *cobra.Command, acls []*schedv1.ACLBinding, 
 }
 
 func getPrefixAndResourceIdFromPrincipal(principal string, numericIdToResourceId map[int32]string) (string, string, error) {
+	fmt.Println("principal:", principal)
 	if principal == "" {
 		return "", "", nil
 	}
@@ -364,7 +365,7 @@ func getPrefixAndResourceIdFromPrincipal(principal string, numericIdToResourceId
 	if !ok {
 		return "", "", errors.New(errors.UserIdNotValidErrorMsg)
 	}
-
+	fmt.Println(prefix, resourceId)
 	return prefix, resourceId, nil
 }
 

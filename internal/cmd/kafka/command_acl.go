@@ -139,7 +139,7 @@ func parsePrincipal(principal string) (string, error) {
 	return id, nil
 }
 
-func (c *aclCommand) mapUserIdToResourceId() (map[int32]string, error) {
+func (c *aclCommand) mapUserIdToResourceId() (map[int32]string, error) { // kafka acls still uses numeric id's.
 	serviceAccounts, err := c.PrivateClient.User.GetServiceAccounts(context.Background())
 	if err != nil {
 		return nil, err

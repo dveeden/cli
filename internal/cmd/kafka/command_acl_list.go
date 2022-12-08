@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	aclutil "github.com/confluentinc/cli/internal/pkg/acl"
@@ -66,6 +68,7 @@ func (c *aclCommand) list(cmd *cobra.Command, _ []string) error {
 	}
 
 	aclDataList, httpResp, err := kafkaREST.CloudClient.GetKafkaAcls(kafkaClusterConfig.ID, acl[0].ACLBinding)
+	fmt.Println("acldatalist", aclDataList.Data[0])
 	if err != nil {
 		return kafkarest.NewError(kafkaREST.CloudClient.GetUrl(), err, httpResp)
 	}

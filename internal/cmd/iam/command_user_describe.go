@@ -32,7 +32,7 @@ func (c userCommand) describe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(errors.BadResourceIDErrorMsg, resource.UserPrefix)
 	}
 
-	userProfile, err := c.PrivateClient.User.GetUserProfile(context.Background(), &orgv1.User{ResourceId: args[0]})
+	userProfile, err := c.PrivateClient.User.GetUserProfile(context.Background(), &orgv1.User{ResourceId: args[0]}) // todo when user model is updated
 	if err != nil {
 		return err
 	}
