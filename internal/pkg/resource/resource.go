@@ -19,6 +19,7 @@ const (
 	KafkaCluster          = "Kafka cluster"
 	KsqlCluster           = "kSQL cluster"
 	MirrorTopic           = "mirror topic"
+	Organization          = "organization"
 	ProviderShare         = "provider share"
 	Pipeline              = "pipeline"
 	SchemaExporter        = "schema exporter"
