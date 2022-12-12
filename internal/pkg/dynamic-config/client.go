@@ -24,10 +24,10 @@ func (d *DynamicContext) FetchCluster(clusterId string) (*v1.KafkaClusterConfig,
 	}
 
 	config := &v1.KafkaClusterConfig{
-		ID:           *cluster.Id,
-		Name:         *cluster.Spec.DisplayName,
-		Bootstrap:    strings.TrimPrefix(*cluster.Spec.KafkaBootstrapEndpoint, "SASL_SSL://"),
-		RestEndpoint: *cluster.Spec.HttpEndpoint,
+		ID:           cluster.GetId(),
+		Name:         cluster.Spec.GetDisplayName(),
+		Bootstrap:    strings.TrimPrefix(cluster.Spec.GetKafkaBootstrapEndpoint(), "SASL_SSL://"),
+		RestEndpoint: cluster.Spec.GetHttpEndpoint(),
 		APIKeys:      make(map[string]*v1.APIKeyPair),
 		LastUpdate:   time.Now(),
 	}

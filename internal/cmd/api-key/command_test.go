@@ -14,6 +14,7 @@ import (
 	ccsdkmock "github.com/confluentinc/ccloud-sdk-go-v1/mock"
 	apikeysv2 "github.com/confluentinc/ccloud-sdk-go-v2/apikeys/v2"
 	apikeysmock "github.com/confluentinc/ccloud-sdk-go-v2/apikeys/v2/mock"
+	cmkv2 "github.com/confluentinc/ccloud-sdk-go-v2/cmk/v2"
 	iamv2 "github.com/confluentinc/ccloud-sdk-go-v2/iam/v2"
 	iammock "github.com/confluentinc/ccloud-sdk-go-v2/iam/v2/mock"
 	ksqlmock "github.com/confluentinc/ccloud-sdk-go-v2/ksql/mock"
@@ -132,10 +133,9 @@ type APITestSuite struct {
 	apiKeysMock           *apikeysmock.APIKeysIamV2Api
 	iamServiceAccountMock *iammock.ServiceAccountsIamV2Api
 	keystore              *mock.KeyStore
-	kafkaCluster          *schedv1.KafkaCluster
+	kafkaCluster          *cmkv2.CmkV2Cluster
 	srCluster             *schedv1.SchemaRegistryCluster
 	srMothershipMock      *ccsdkmock.SchemaRegistry
-	kafkaMock             *ccsdkmock.Kafka
 	ksqlmock              *ksqlmock.ClustersKsqldbcmV2Api
 	isPromptPipe          bool
 	userMock              *ccsdkmock.User
@@ -156,22 +156,12 @@ func (suite *APITestSuite) SetupTest() {
 		ServiceAccountId: auditLogServiceAccountId,
 		TopicName:        "confluent-audit-log-events",
 	}
-	suite.kafkaCluster = &schedv1.KafkaCluster{
-		Id:         cluster.ID,
-		Name:       cluster.Name,
-		Enterprise: true,
-		AccountId:  environment,
+	suite.kafkaCluster = &cmkv2.CmkV2Cluster{
+		Id:   cmkv2.PtrString(cluster.ID),
+		Spec: &cmkv2.CmkV2ClusterSpec{Environment: &cmkv2.ObjectReference{Id: environment}},
 	}
 	suite.srCluster = &schedv1.SchemaRegistryCluster{
 		Id: srClusterID,
-	}
-	suite.kafkaMock = &ccsdkmock.Kafka{
-		DescribeFunc: func(ctx context.Context, cluster *schedv1.KafkaCluster) (*schedv1.KafkaCluster, error) {
-			return suite.kafkaCluster, nil
-		},
-		ListFunc: func(ctx context.Context, cluster *schedv1.KafkaCluster) (clusters []*schedv1.KafkaCluster, e error) {
-			return []*schedv1.KafkaCluster{suite.kafkaCluster}, nil
-		},
 	}
 	suite.ksqlmock = &ksqlmock.ClustersKsqldbcmV2Api{
 		GetKsqldbcmV2ClusterFunc: func(context.Context, string) ksqlv2.ApiGetKsqldbcmV2ClusterRequest {
@@ -299,7 +289,6 @@ func (suite *APITestSuite) newCmd() *cobra.Command {
 	privateClient := &ccloud.Client{
 		Auth:           &ccsdkmock.Auth{},
 		Account:        &ccsdkmock.Account{},
-		Kafka:          suite.kafkaMock,
 		SchemaRegistry: suite.srMothershipMock,
 		Connect:        &ccsdkmock.Connect{},
 		User:           suite.userMock,
@@ -355,7 +344,7 @@ func (suite *APITestSuite) TestCreateSrApiKey() {
 
 func (suite *APITestSuite) TestCreateKafkaApiKey() {
 	cmd := suite.newCmd()
-	cmd.SetArgs([]string{"create", "--resource", suite.kafkaCluster.Id})
+	cmd.SetArgs([]string{"create", "--resource", suite.kafkaCluster.GetId()})
 	err := cmd.Execute()
 	req := require.New(suite.T())
 	req.Nil(err)
@@ -390,7 +379,7 @@ func (suite *APITestSuite) TestListSrApiKey() {
 
 func (suite *APITestSuite) TestListKafkaApiKey() {
 	cmd := suite.newCmd()
-	_, err := pcmd.ExecuteCommand(cmd, "list", "--resource", suite.kafkaCluster.Id)
+	_, err := pcmd.ExecuteCommand(cmd, "list", "--resource", suite.kafkaCluster.GetId())
 	req := require.New(suite.T())
 	req.Nil(err)
 	req.True(suite.apiKeysMock.ListIamV2ApiKeysExecuteCalled())
@@ -399,7 +388,7 @@ func (suite *APITestSuite) TestListKafkaApiKey() {
 // Audit Log Destination Clusters are kafka clusters, however their API keys are created by internal service accounts
 func (suite *APITestSuite) TestListAuditLogDestinationClusterApiKey() {
 	cmd := suite.newCmd()
-	out, err := pcmd.ExecuteCommand(cmd, "list", "--resource", suite.kafkaCluster.Id)
+	out, err := pcmd.ExecuteCommand(cmd, "list", "--resource", suite.kafkaCluster.GetId())
 
 	req := require.New(suite.T())
 	req.Nil(err)

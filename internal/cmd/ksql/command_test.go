@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	orgv1 "github.com/confluentinc/cc-structs/kafka/org/v1"
-	schedv1 "github.com/confluentinc/cc-structs/kafka/scheduler/v1"
 	"github.com/confluentinc/ccloud-sdk-go-v1"
 	"github.com/confluentinc/ccloud-sdk-go-v1/mock"
 	ksqlmock "github.com/confluentinc/ccloud-sdk-go-v2/ksql/mock"
@@ -31,23 +30,18 @@ const (
 
 type KSQLTestSuite struct {
 	suite.Suite
-	conf         *v1.Config
-	kafkaCluster *schedv1.KafkaCluster
-	ksqlCluster  *ksqlv2.KsqldbcmV2Cluster
-	serviceAcct  *orgv1.User
-	ksqlc        *ksqlmock.ClustersKsqldbcmV2Api
-	kafkac       *mock.Kafka
-	userc        *mock.User
-	client       *ccloud.Client
-	v2Client     *ccloudv2.Client
+	conf        *v1.Config
+	ksqlCluster *ksqlv2.KsqldbcmV2Cluster
+	serviceAcct *orgv1.User
+	ksqlc       *ksqlmock.ClustersKsqldbcmV2Api
+	kafkac      *mock.Kafka
+	userc       *mock.User
+	client      *ccloud.Client
+	v2Client    *ccloudv2.Client
 }
 
 func (suite *KSQLTestSuite) SetupSuite() {
 	suite.conf = v1.AuthenticatedCloudConfigMock()
-	suite.kafkaCluster = &schedv1.KafkaCluster{
-		Id:   "lkc-123",
-		Name: "kafka",
-	}
 	suite.serviceAcct = &orgv1.User{
 		ServiceAccount: true,
 		ServiceName:    "KSQL." + ksqlClusterID,
@@ -73,17 +67,6 @@ func (suite *KSQLTestSuite) SetupTest() {
 		},
 		Status: &ksqlv2.KsqldbcmV2ClusterStatus{
 			TopicPrefix: &outputTopicPrefix,
-		},
-	}
-	suite.kafkac = &mock.Kafka{
-		DescribeFunc: func(ctx context.Context, cluster *schedv1.KafkaCluster) (*schedv1.KafkaCluster, error) {
-			return suite.kafkaCluster, nil
-		},
-		CreateACLsFunc: func(ctx context.Context, cluster *schedv1.KafkaCluster, binding []*schedv1.ACLBinding) error {
-			return nil
-		},
-		ListFunc: func(ctx context.Context, cluster *schedv1.KafkaCluster) (clusters []*schedv1.KafkaCluster, e error) {
-			return []*schedv1.KafkaCluster{suite.kafkaCluster}, nil
 		},
 	}
 
@@ -128,8 +111,7 @@ func (suite *KSQLTestSuite) SetupTest() {
 		},
 	}
 	suite.client = &ccloud.Client{
-		Kafka: suite.kafkac,
-		User:  suite.userc,
+		User: suite.userc,
 	}
 	suite.v2Client = &ccloudv2.Client{
 		KsqlClient: &ksqlv2.APIClient{
@@ -156,7 +138,6 @@ func (suite *KSQLTestSuite) TestShouldNotConfigureAclsWhenUser() {
 
 	req := require.New(suite.T())
 	req.EqualError(err, fmt.Sprintf(errors.KsqlDBNoServiceAccountErrorMsg, ksqlClusterID))
-	req.Equal(0, len(suite.kafkac.CreateACLsCalls()))
 }
 
 func (suite *KSQLTestSuite) TestDescribeKSQL() {

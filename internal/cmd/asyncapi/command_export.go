@@ -322,7 +322,7 @@ func (c *command) getBindings(cluster *schedv1.KafkaCluster, topicDescription ka
 	return bindings, nil
 }
 
-func (c *command) getClusterDetails(details *accountDetails, flags *flags) error {
+func (c *command) getClusterDetails(details *accountDetails, flags *flags) error { // change this to use cmkv2 cluster, and call get http endpoint.
 	cluster, err := dynamicconfig.KafkaCluster(c.Context)
 	if err != nil {
 		return fmt.Errorf(`failed to find Kafka cluster: %v`, err)
