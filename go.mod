@@ -443,7 +443,7 @@ replace (
 	k8s.io/api => k8s.io/api v0.0.0-20190126160459-e86510ea3fe7
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20171026124306-e509bb64fe11
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20170925234155-019ae5ada31d
-	github.com/confluentinc/ccloud-sdk-go-v2/org => ../ccloud-sdk-go-v2-internal/org
+	github.com/confluentinc/ccloud-sdk-go-v2/org => ../ccloud-sdk-go-v2/org
 )
 
 go 1.19
