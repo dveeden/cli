@@ -3,6 +3,7 @@ package netrc
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"runtime"
@@ -10,7 +11,10 @@ import (
 
 	gonetrc "github.com/confluentinc/go-netrc/netrc"
 
+	"os/user"
+
 	"github.com/confluentinc/cli/internal/pkg/errors"
+	keychain "github.com/keybase/go-keychain"
 )
 
 const (
@@ -63,7 +67,40 @@ type NetrcHandlerImpl struct {
 	FileName string
 }
 
+const accessGroup = "cli"
+
 func (n *NetrcHandlerImpl) WriteNetrcCredentials(isCloud bool, ctxName, username, password string) error {
+	currentUser, err := user.Current()
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	osUser := currentUser.Username
+
+	item := keychain.NewItem()
+	item.SetSecClass(keychain.SecClassGenericPassword)
+	item.SetService(ctxName)
+	item.SetAccount(osUser)
+	item.SetAccessGroup(accessGroup)
+	item.SetData([]byte(password))
+	item.SetSynchronizable(keychain.SynchronizableNo)
+	item.SetAccessible(keychain.AccessibleWhenUnlocked)
+	item.SetMatchLimit(keychain.MatchLimitOne)
+	item.SetReturnData(true)
+	results, err := keychain.QueryItem(item)
+	if err != nil {
+		return err
+	}
+	if len(results) == 0 {
+		err := keychain.AddItem(item)
+		if err != nil {
+			return err
+		}
+		fmt.Println("encrypted password")
+	} else {
+		fmt.Println("already exist. decrypted:", string(results[0].Data))
+	}
+
 	netrcFile, err := getOrCreateNetrc(n.FileName)
 	if err != nil {
 		return errors.Wrapf(err, errors.WriteToNetrcFileErrorMsg, n.FileName)
@@ -92,12 +129,30 @@ func (n *NetrcHandlerImpl) WriteNetrcCredentials(isCloud bool, ctxName, username
 }
 
 func (n *NetrcHandlerImpl) RemoveNetrcCredentials(isCloud bool, ctxName string) (string, error) {
+	currentUser, err := user.Current()
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	osUser := currentUser.Username
+	item := keychain.NewItem()
+	item.SetSecClass(keychain.SecClassGenericPassword)
+	item.SetService(ctxName)
+	item.SetAccount(osUser)
+	err = keychain.DeleteItem(item)
+	if err != nil {
+		fmt.Println("err", err)
+	}
+	fmt.Println("deleted entry")
+
 	netrcFile, err := getNetrc(n.FileName)
 	if err != nil {
 		return "", err
 	}
 
 	machineName := getNetrcMachineName(isCloud, ctxName)
+	fmt.Println("machine name:", machineName)
+	fmt.Println("context name:", ctxName)
 	machine := netrcFile.FindMachine(machineName)
 	if machine != nil {
 		err := removeCredentials(machineName, netrcFile, n.FileName)
