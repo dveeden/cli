@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	corev1 "github.com/confluentinc/cc-structs/kafka/product/core/v1"
-	schedv1 "github.com/confluentinc/cc-structs/kafka/scheduler/v1"
 	"github.com/confluentinc/ccloud-sdk-go-v1"
 	ccloudv1 "github.com/confluentinc/ccloud-sdk-go-v1-public"
 	ccloudv1mock "github.com/confluentinc/ccloud-sdk-go-v1-public/mock"
@@ -147,36 +145,6 @@ func (suite *KafkaClusterTestSuite) SetupTest() {
 			return resp, nil, nil
 		},
 	}
-	suite.usageLimits = &ccsdkmock.UsageLimits{
-		GetUsageLimitsFunc: func(ctx context.Context, provider ...string) (*schedv1.GetUsageLimitsReply, error) {
-			return &schedv1.GetUsageLimitsReply{UsageLimits: &corev1.UsageLimits{
-				TierLimits: map[string]*corev1.TierFixedLimits{
-					"BASIC": {
-						PartitionLimits: &corev1.KafkaPartitionLimits{},
-						ClusterLimits:   &corev1.KafkaClusterLimits{},
-					},
-				},
-				CkuLimits: map[uint32]*corev1.CKULimits{
-					uint32(2): {
-						NumBrokers: &corev1.IntegerUsageLimit{Limit: &corev1.IntegerUsageLimit_Value{Value: 5}},
-						Storage: &corev1.IntegerUsageLimit{
-							Limit: &corev1.IntegerUsageLimit_Value{Value: 500},
-							Unit:  corev1.LimitUnit_GB,
-						},
-						NumPartitions: &corev1.IntegerUsageLimit{Limit: &corev1.IntegerUsageLimit_Value{Value: 2000}},
-					},
-					uint32(3): {
-						NumBrokers: &corev1.IntegerUsageLimit{Limit: &corev1.IntegerUsageLimit_Value{Value: 5}},
-						Storage: &corev1.IntegerUsageLimit{
-							Limit: &corev1.IntegerUsageLimit_Value{Value: 1000},
-							Unit:  corev1.LimitUnit_GB,
-						},
-						NumPartitions: &corev1.IntegerUsageLimit{Limit: &corev1.IntegerUsageLimit_Value{Value: 3000}},
-					},
-				},
-			}}, nil
-		},
-	}
 }
 
 func (suite *KafkaClusterTestSuite) newCmd(conf *v1.Config) *cobra.Command {
@@ -214,27 +182,6 @@ func (suite *KafkaClusterTestSuite) TestClusterShrinkShouldPrompt() {
 	req.Contains(err.Error(), "cluster resize error: failed to read your confirmation")
 	req.True(suite.metricsApi.V2MetricsDatasetQueryPostCalled())
 	req.True(suite.metricsApi.V2MetricsDatasetQueryPostExecuteCalled())
-}
-
-func (suite *KafkaClusterTestSuite) TestClusterShrinkValidationError() {
-	req := require.New(suite.T())
-	suite.cmkClusterApi = &cmkmock.ClustersCmkV2Api{
-		GetCmkV2ClusterFunc: func(ctx context.Context, _ string) cmkv2.ApiGetCmkV2ClusterRequest {
-			return cmkv2.ApiGetCmkV2ClusterRequest{}
-		},
-		GetCmkV2ClusterExecuteFunc: func(req cmkv2.ApiGetCmkV2ClusterRequest) (cmkv2.CmkV2Cluster, *http.Response, error) {
-			return cmkExpandCluster, nil, nil
-		},
-	}
-	// Set variable for Metrics API mock
-	shouldError = true
-	shouldPrompt = false
-	cmd := suite.newCmd(v1.AuthenticatedCloudConfigMock())
-	cmd.SetArgs([]string{"update", clusterName, "--cku", "2"})
-	err := cmd.Execute()
-	req.True(suite.metricsApi.V2MetricsDatasetQueryPostCalled())
-	req.True(suite.metricsApi.V2MetricsDatasetQueryPostExecuteCalled())
-	req.Contains(err.Error(), "cluster shrink validation error")
 }
 
 func (suite *KafkaClusterTestSuite) TestCreateKafkaCluster() {
