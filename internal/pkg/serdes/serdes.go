@@ -25,7 +25,7 @@ func GetSerializationProvider(valueFormat string) (SerializationProvider, error)
 	case RAWSCHEMANAME:
 		provider = new(RawSerializationProvider)
 	default:
-		return nil, errors.New(errors.UnknownValueFormatErrorMsg)
+		return nil, errors.New(errors.UnknownSchemaTypeErrorMsg)
 	}
 	return provider, nil
 }
@@ -43,7 +43,7 @@ func GetDeserializationProvider(valueFormat string) (DeserializationProvider, er
 	case RAWSCHEMANAME:
 		provider = new(RawDeserializationProvider)
 	default:
-		return nil, errors.New(errors.UnknownValueFormatErrorMsg)
+		return nil, errors.New(errors.UnknownSchemaTypeErrorMsg)
 	}
 	return provider, nil
 }

@@ -23,12 +23,11 @@ type registerSchemaResponse struct {
 }
 
 type RegisterSchemaConfigs struct {
-	SchemaDir   string
-	Subject     string
-	ValueFormat string
-	SchemaType  string
-	SchemaPath  *string
-	Refs        []srsdk.SchemaReference
+	SchemaDir  string
+	Subject    string
+	SchemaType string
+	SchemaPath *string
+	Refs       []srsdk.SchemaReference
 }
 
 func RegisterSchemaWithAuth(cmd *cobra.Command, schemaCfg *RegisterSchemaConfigs, srClient *srsdk.APIClient, ctx context.Context) ([]byte, error) {

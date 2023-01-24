@@ -55,6 +55,7 @@ type GroupHandler struct {
 	SrClient   *srsdk.APIClient
 	Ctx        context.Context
 	Format     string
+	SchemaType string
 	Out        io.Writer
 	Subject    string
 	Properties ConsumerProperties
@@ -202,12 +203,12 @@ func consumeMessage(e *ckafka.Message, h *GroupHandler) error {
 		}
 	}
 
-	deserializationProvider, err := serdes.GetDeserializationProvider(h.Format)
-	if err != nil {
-		return err
-	}
-
-	if h.Format != "string" {
+	var deserializationProvider serdes.DeserializationProvider
+	var err error
+	if h.SchemaType == "" {
+		deserializationProvider, err = serdes.GetDeserializationProvider("string")
+	} else {
+		deserializationProvider, err = serdes.GetDeserializationProvider(h.SchemaType)
 		schemaPath, referencePathMap, err := h.RequestSchema(value)
 		if err != nil {
 			return err
@@ -219,6 +220,10 @@ func consumeMessage(e *ckafka.Message, h *GroupHandler) error {
 			return err
 		}
 	}
+	if err != nil {
+		return err
+	}
+
 	jsonMessage, err := serdes.Deserialize(deserializationProvider, value)
 	if err != nil {
 		return err

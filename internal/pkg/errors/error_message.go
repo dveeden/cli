@@ -172,7 +172,7 @@ const (
 	FailedToProduceErrorMsg              = "failed to produce offset %d: %s\n"
 	FailedToFindSchemaIDErrorMsg         = "failed to find schema ID in topic data"
 	MissingKeyErrorMsg                   = "missing key in message"
-	UnknownValueFormatErrorMsg           = "unknown value schema format"
+	UnknownSchemaTypeErrorMsg            = "unknown value schema type"
 	TopicExistsErrorMsg                  = `topic "%s" already exists for Kafka cluster "%s"`
 	TopicExistsSuggestions               = ListTopicSuggestions
 	NoAPISecretStoredOrPassedErrorMsg    = `no API secret for API key "%s" of resource "%s" passed via flag or stored in local CLI state`

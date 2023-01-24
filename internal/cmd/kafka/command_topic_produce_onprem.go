@@ -40,7 +40,7 @@ func (c *authenticatedTopicCommand) newProduceCommandOnPrem() *cobra.Command {
 	pcmd.AddProtocolFlag(cmd)
 	pcmd.AddMechanismFlag(cmd, c.AuthenticatedCLICommand)
 	cmd.Flags().String("schema", "", "The path to the local schema file.")
-	pcmd.AddValueFormatFlag(cmd)
+	pcmd.AddSchemaTypeFlag(cmd)
 	cmd.Flags().String("references", "", "The path to the references file.")
 	cmd.Flags().Bool("parse-key", false, "Parse key from the message.")
 	cmd.Flags().String("delimiter", ":", "The delimiter separating each key and value.")
@@ -93,7 +93,7 @@ func (c *authenticatedTopicCommand) onPremProduce(cmd *cobra.Command, args []str
 		return err
 	}
 
-	valueFormat, subject, serializationProvider, err := prepareSerializer(cmd, topicName)
+	schemaType, subject, serializationProvider, err := prepareSerializer(cmd, topicName)
 	if err != nil {
 		return err
 	}
@@ -116,12 +116,11 @@ func (c *authenticatedTopicCommand) onPremProduce(cmd *cobra.Command, args []str
 
 	// Meta info contains magic byte and schema ID (4 bytes).
 	schemaCfg := &sr.RegisterSchemaConfigs{
-		Subject:     subject,
-		SchemaDir:   dir,
-		SchemaType:  serializationProvider.GetSchemaName(),
-		ValueFormat: valueFormat,
-		SchemaPath:  &schemaPath,
-		Refs:        refs,
+		Subject:    subject,
+		SchemaDir:  dir,
+		SchemaType: schemaType,
+		SchemaPath: &schemaPath,
+		Refs:       refs,
 	}
 	metaInfo, referencePathMap, err := c.registerSchema(cmd, schemaCfg)
 	if err != nil {
@@ -203,7 +202,7 @@ func (c *authenticatedTopicCommand) registerSchema(cmd *cobra.Command, schemaCfg
 	// Registering schema when specified, and fill metaInfo array.
 	metaInfo := []byte{}
 	referencePathMap := map[string]string{}
-	if schemaCfg.ValueFormat != "string" && len(*schemaCfg.SchemaPath) > 0 {
+	if schemaCfg.SchemaType != "" && len(*schemaCfg.SchemaPath) > 0 {
 		if c.State == nil { // require log-in to use oauthbearer token
 			return nil, nil, errors.NewErrorWithSuggestions(errors.NotLoggedInErrorMsg, errors.AuthTokenSuggestions)
 		}

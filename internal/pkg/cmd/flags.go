@@ -318,9 +318,9 @@ func AddSchemaTypeFlag(cmd *cobra.Command) {
 	arr := []string{"avro", "json", "protobuf"}
 	str := utils.ArrayToCommaDelimitedString(arr)
 
-	cmd.Flags().String("type", "", fmt.Sprintf("Specify the schema type as %s.", str))
+	cmd.Flags().String("schema-type", "", fmt.Sprintf("Specify the schema type as %s. Note that schema references are not supported for avro.", str))
 
-	RegisterFlagCompletionFunc(cmd, "type", func(_ *cobra.Command, _ []string) []string {
+	RegisterFlagCompletionFunc(cmd, "schema-type", func(_ *cobra.Command, _ []string) []string {
 		return arr
 	})
 }
