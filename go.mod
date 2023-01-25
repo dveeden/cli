@@ -36,6 +36,7 @@ require (
 	github.com/confluentinc/properties v0.0.0-20190814194548-42c10394a787
 	github.com/confluentinc/schema-registry-sdk-go v0.0.18
 	github.com/davecgh/go-spew v1.1.1
+	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/dghubble/sling v1.4.1
 	github.com/fatih/color v1.13.0
 	github.com/go-yaml/yaml v2.1.0+incompatible

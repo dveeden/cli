@@ -11,6 +11,7 @@ import (
 
 	"github.com/confluentinc/cli/internal/pkg/auth/sso"
 	v1 "github.com/confluentinc/cli/internal/pkg/config/v1"
+	"github.com/confluentinc/cli/internal/pkg/encrypt"
 	"github.com/confluentinc/cli/internal/pkg/errors"
 	"github.com/confluentinc/cli/internal/pkg/form"
 	"github.com/confluentinc/cli/internal/pkg/log"
@@ -64,7 +65,7 @@ type LoginCredentialsManager interface {
 	GetCloudCredentialsFromEnvVar(orgResourceId string) func() (*Credentials, error)
 	GetOnPremCredentialsFromEnvVar() func() (*Credentials, error)
 	GetCredentialsFromConfig(cfg *v1.Config) func() (*Credentials, error)
-	GetCredentialsFromNetrc(filterParams netrc.NetrcMachineParams) func() (*Credentials, error)
+	GetCredentialsFromNetrc(filterParams netrc.NetrcMachineParams, salt string) func() (*Credentials, error)
 	GetCloudCredentialsFromPrompt(cmd *cobra.Command, orgResourceId string) func() (*Credentials, error)
 	GetOnPremCredentialsFromPrompt(cmd *cobra.Command) func() (*Credentials, error)
 
@@ -183,7 +184,7 @@ func (h *LoginCredentialsManagerImpl) GetPrerunCredentialsFromConfig(cfg *v1.Con
 	}
 }
 
-func (h *LoginCredentialsManagerImpl) GetCredentialsFromNetrc(filterParams netrc.NetrcMachineParams) func() (*Credentials, error) {
+func (h *LoginCredentialsManagerImpl) GetCredentialsFromNetrc(filterParams netrc.NetrcMachineParams, salt string) func() (*Credentials, error) {
 	return func() (*Credentials, error) {
 		netrcMachine, err := h.getNetrcMachine(filterParams)
 		if err != nil {
@@ -193,7 +194,14 @@ func (h *LoginCredentialsManagerImpl) GetCredentialsFromNetrc(filterParams netrc
 
 		log.CliLogger.Warnf(errors.FoundNetrcCredMsg, netrcMachine.User, h.netrcHandler.GetFileName())
 
-		return &Credentials{Username: netrcMachine.User, Password: netrcMachine.Password}, nil
+		encryptedPassword := netrcMachine.Password
+
+		decryptedPassword, err := encrypt.Decrypt(encryptedPassword, salt)
+		if err != nil {
+			return nil, err
+		}
+
+		return &Credentials{Username: netrcMachine.User, Password: decryptedPassword}, nil
 	}
 }
 
