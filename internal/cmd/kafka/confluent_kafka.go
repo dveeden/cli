@@ -55,6 +55,7 @@ type GroupHandler struct {
 	SrClient   *srsdk.APIClient
 	Ctx        context.Context
 	Format     string
+	SchemaType string
 	Out        io.Writer
 	Subject    string
 	Properties ConsumerProperties
@@ -202,12 +203,10 @@ func consumeMessage(e *ckafka.Message, h *GroupHandler) error {
 		}
 	}
 
-	deserializationProvider, err := serdes.GetDeserializationProvider(h.Format)
-	if err != nil {
-		return err
-	}
-
+	var deserializationProvider serdes.DeserializationProvider
+	var err error
 	if h.Format != "string" {
+		deserializationProvider, err = serdes.GetDeserializationProvider(h.SchemaType)
 		schemaPath, referencePathMap, err := h.RequestSchema(value)
 		if err != nil {
 			return err
@@ -215,10 +214,10 @@ func consumeMessage(e *ckafka.Message, h *GroupHandler) error {
 		// Message body is encoded after 5 bytes of meta information.
 		value = value[messageOffset:]
 		err = deserializationProvider.LoadSchema(schemaPath, referencePathMap)
-		if err != nil {
-			return err
-		}
+	} else {
+		deserializationProvider, err = serdes.GetDeserializationProvider("string")
 	}
+
 	jsonMessage, err := serdes.Deserialize(deserializationProvider, value)
 	if err != nil {
 		return err

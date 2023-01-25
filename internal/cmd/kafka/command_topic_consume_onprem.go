@@ -41,7 +41,7 @@ func (c *authenticatedTopicCommand) newConsumeCommandOnPrem() *cobra.Command {
 	cmd.Flags().BoolP("from-beginning", "b", false, "Consume from beginning of the topic.")
 	cmd.Flags().Int64("offset", 0, "The offset from the beginning to consume from.")
 	cmd.Flags().Int32("partition", -1, "The partition to consume from.")
-	pcmd.AddValueFormatFlag(cmd)
+	pcmd.AddSchemaTypeFlag(cmd)
 	cmd.Flags().Bool("print-key", false, "Print key of the message.")
 	cmd.Flags().Bool("full-header", false, "Print complete content of message headers.")
 	cmd.Flags().Bool("timestamp", false, "Print message timestamp in milliseconds.")
@@ -78,9 +78,12 @@ func (c *authenticatedTopicCommand) onPremConsume(cmd *cobra.Command, args []str
 		return err
 	}
 
-	valueFormat, err := cmd.Flags().GetString("value-format")
+	schemaType, err := cmd.Flags().GetString("schema-type")
 	if err != nil {
 		return err
+	}
+	if schemaType == "string" {
+		return errors.New(errors.UnknownSchemaTypeErrorMsg)
 	}
 
 	if cmd.Flags().Changed("config-file") && cmd.Flags().Changed("config") {
@@ -147,7 +150,7 @@ func (c *authenticatedTopicCommand) onPremConsume(cmd *cobra.Command, args []str
 
 	var srClient *srsdk.APIClient
 	var ctx context.Context
-	if valueFormat != "string" {
+	if schemaType != "" {
 		// Only initialize client and context when schema is specified.
 		if c.State == nil { // require log-in to use oauthbearer token
 			return errors.NewErrorWithSuggestions(errors.NotLoggedInErrorMsg, errors.AuthTokenSuggestions)
@@ -167,10 +170,10 @@ func (c *authenticatedTopicCommand) onPremConsume(cmd *cobra.Command, args []str
 	}()
 
 	groupHandler := &GroupHandler{
-		SrClient: srClient,
-		Ctx:      ctx,
-		Format:   valueFormat,
-		Out:      cmd.OutOrStdout(),
+		SrClient:   srClient,
+		Ctx:        ctx,
+		SchemaType: schemaType,
+		Out:        cmd.OutOrStdout(),
 		Properties: ConsumerProperties{
 			PrintKey:   printKey,
 			FullHeader: fullHeader,

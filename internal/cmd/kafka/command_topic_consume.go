@@ -44,7 +44,7 @@ func newConsumeCommand(prerunner pcmd.PreRunner, clientId string) *cobra.Command
 	cmd.Flags().BoolP("from-beginning", "b", false, "Consume from beginning of the topic.")
 	cmd.Flags().Int64("offset", 0, "The offset from the beginning to consume from.")
 	cmd.Flags().Int32("partition", -1, "The partition to consume from.")
-	pcmd.AddValueFormatFlag(cmd)
+	pcmd.AddSchemaTypeFlag(cmd)
 	cmd.Flags().Bool("print-key", false, "Print key of the message.")
 	cmd.Flags().Bool("full-header", false, "Print complete content of message headers.")
 	cmd.Flags().String("delimiter", "\t", "The delimiter separating each key and value.")
@@ -67,9 +67,12 @@ func newConsumeCommand(prerunner pcmd.PreRunner, clientId string) *cobra.Command
 func (c *hasAPIKeyTopicCommand) consume(cmd *cobra.Command, args []string) error {
 	topic := args[0]
 
-	valueFormat, err := cmd.Flags().GetString("value-format")
+	schemaType, err := cmd.Flags().GetString("schema-type")
 	if err != nil {
 		return err
+	}
+	if schemaType == "string" {
+		return errors.New(errors.UnknownSchemaTypeErrorMsg)
 	}
 
 	cluster, err := c.Config.Context().GetKafkaClusterForCommand()
@@ -160,7 +163,7 @@ func (c *hasAPIKeyTopicCommand) consume(cmd *cobra.Command, args []string) error
 
 	var srClient *srsdk.APIClient
 	var ctx context.Context
-	if valueFormat != "string" {
+	if schemaType != "" {
 		srAPIKey, err := cmd.Flags().GetString("schema-registry-api-key")
 		if err != nil {
 			return err
@@ -198,11 +201,11 @@ func (c *hasAPIKeyTopicCommand) consume(cmd *cobra.Command, args []string) error
 	}
 
 	groupHandler := &GroupHandler{
-		SrClient: srClient,
-		Ctx:      ctx,
-		Format:   valueFormat,
-		Out:      cmd.OutOrStdout(),
-		Subject:  subject,
+		SrClient:   srClient,
+		Ctx:        ctx,
+		SchemaType: schemaType,
+		Out:        cmd.OutOrStdout(),
+		Subject:    subject,
 		Properties: ConsumerProperties{
 			PrintKey:   printKey,
 			FullHeader: fullHeader,

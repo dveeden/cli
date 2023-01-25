@@ -15,6 +15,7 @@ import (
 
 	"github.com/confluentinc/cli/internal/pkg/errors"
 	"github.com/confluentinc/cli/internal/pkg/output"
+	"github.com/confluentinc/cli/internal/pkg/serdes"
 	"github.com/confluentinc/cli/internal/pkg/utils"
 )
 
@@ -23,12 +24,11 @@ type registerSchemaResponse struct {
 }
 
 type RegisterSchemaConfigs struct {
-	SchemaDir   string
-	Subject     string
-	ValueFormat string
-	SchemaType  string
-	SchemaPath  *string
-	Refs        []srsdk.SchemaReference
+	SchemaDir  string
+	Subject    string
+	SchemaType string
+	SchemaPath *string
+	Refs       []srsdk.SchemaReference
 }
 
 func RegisterSchemaWithAuth(cmd *cobra.Command, schemaCfg *RegisterSchemaConfigs, srClient *srsdk.APIClient, ctx context.Context) ([]byte, error) {
@@ -37,7 +37,7 @@ func RegisterSchemaWithAuth(cmd *cobra.Command, schemaCfg *RegisterSchemaConfigs
 		return nil, err
 	}
 
-	response, _, err := srClient.DefaultApi.Register(ctx, schemaCfg.Subject, srsdk.RegisterSchemaRequest{Schema: string(schema), SchemaType: schemaCfg.SchemaType, References: schemaCfg.Refs})
+	response, _, err := srClient.DefaultApi.Register(ctx, schemaCfg.Subject, srsdk.RegisterSchemaRequest{Schema: string(schema), SchemaType: serdes.SchemaTypeToBackend[schemaCfg.SchemaType], References: schemaCfg.Refs})
 	if err != nil {
 		return nil, err
 	}

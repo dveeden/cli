@@ -38,7 +38,7 @@ func newProduceCommand(prerunner pcmd.PreRunner, clientId string) *cobra.Command
 
 	cmd.Flags().String("schema", "", "The path to the schema file.")
 	cmd.Flags().Int32("schema-id", 0, "The ID of the schema.")
-	pcmd.AddValueFormatFlag(cmd)
+	pcmd.AddSchemaTypeFlag(cmd)
 	cmd.Flags().String("references", "", "The path to the references file.")
 	cmd.Flags().Bool("parse-key", false, "Parse key from the message.")
 	cmd.Flags().String("delimiter", ":", "The delimiter separating each key and value.")
@@ -64,7 +64,7 @@ func (c *hasAPIKeyTopicCommand) produce(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	valueFormat, subject, serializationProvider, err := prepareSerializer(cmd, topic)
+	schemaType, subject, serializationProvider, err := prepareSerializer(cmd, topic)
 	if err != nil {
 		return err
 	}
@@ -83,11 +83,10 @@ func (c *hasAPIKeyTopicCommand) produce(cmd *cobra.Command, args []string) error
 	}()
 
 	schemaCfg := &sr.RegisterSchemaConfigs{
-		SchemaDir:   dir,
-		SchemaPath:  &schemaPath,
-		Subject:     subject,
-		ValueFormat: valueFormat,
-		SchemaType:  serializationProvider.GetSchemaName(),
+		SchemaDir:  dir,
+		SchemaPath: &schemaPath,
+		Subject:    subject,
+		SchemaType: schemaType,
 	}
 
 	metaInfo, referencePathMap, err := c.prepareSchemaFileAndRefs(cmd, schemaCfg)
@@ -199,16 +198,27 @@ func (c *hasAPIKeyTopicCommand) produce(cmd *cobra.Command, args []string) error
 }
 
 func prepareSerializer(cmd *cobra.Command, topicName string) (string, string, serdes.SerializationProvider, error) {
-	valueFormat, err := cmd.Flags().GetString("value-format")
+	schemaType, err := cmd.Flags().GetString("schema-type")
 	if err != nil {
 		return "", "", nil, err
 	}
+	if schemaType == "string" {
+		return "", "", nil, errors.New(errors.UnknownSchemaTypeErrorMsg)
+	}
+
 	subject := topicNameStrategy(topicName)
-	serializationProvider, err := serdes.GetSerializationProvider(valueFormat)
+
+	var serializationProvider serdes.SerializationProvider
+	if schemaType == "" {
+		serializationProvider, err = serdes.GetSerializationProvider("string")
+	} else {
+		serializationProvider, err = serdes.GetSerializationProvider(schemaType)
+	}
 	if err != nil {
 		return "", "", nil, err
 	}
-	return valueFormat, subject, serializationProvider, nil
+
+	return schemaType, subject, serializationProvider, nil
 }
 
 func (c *hasAPIKeyTopicCommand) getSchemaRegistryClient(cmd *cobra.Command) (*srsdk.APIClient, context.Context, error) {
@@ -233,7 +243,7 @@ func (c *hasAPIKeyTopicCommand) registerSchema(cmd *cobra.Command, schemaCfg *sr
 	// Registering schema when specified, and fill metaInfo array.
 	var metaInfo []byte
 	referencePathMap := map[string]string{}
-	if schemaCfg.ValueFormat != "string" && len(*schemaCfg.SchemaPath) > 0 {
+	if cmd.Flags().Changed("schema-type") && len(*schemaCfg.SchemaPath) > 0 {
 		srClient, ctx, err := c.getSchemaRegistryClient(cmd)
 		if err != nil {
 			return nil, nil, err
@@ -282,12 +292,10 @@ func (c *hasAPIKeyTopicCommand) prepareSchemaFileAndRefs(cmd *cobra.Command, sch
 		if err != nil {
 			return nil, nil, err
 		}
-
-		if schemaCfg.ValueFormat != "string" {
-			*schemaCfg.SchemaPath, referencePathMap, err = sr.RequestSchemaWithId(schemaId, schemaCfg.SchemaDir, schemaCfg.Subject, srClient, ctx)
-			if err != nil {
-				return nil, nil, err
-			}
+		fmt.Println("requesting schema!")
+		*schemaCfg.SchemaPath, referencePathMap, err = sr.RequestSchemaWithId(schemaId, schemaCfg.SchemaDir, schemaCfg.Subject, srClient, ctx)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 	return metaInfo, referencePathMap, nil
