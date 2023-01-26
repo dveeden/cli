@@ -7,32 +7,32 @@ RELEASE_BRANCH  ?= main
 .PHONY: build # compile natively based on the system
 build:
 ifneq "" "$(findstring NT,$(shell uname))" # build for Windows
-	CC=gcc CXX=g++ make cli-builder
+	CC=gcc CXX=g++ gmake cli-builder
 else ifneq (,$(findstring Linux,$(shell uname)))
     ifneq (,$(findstring musl,$(shell ldd --version))) # build for musl Linux
-		CC=gcc CXX=g++ TAGS=musl make cli-builder
+		CC=gcc CXX=g++ TAGS=musl gmake cli-builder
     else # build for glibc Linux
-		CC=gcc CXX=g++ make cli-builder
+		CC=gcc CXX=g++ gmake cli-builder
     endif
 else # build for Darwin
-	make cli-builder
+	gmake cli-builder
 endif
 
 .PHONY: cross-build # cross-compile from Darwin/amd64 machine to Win64, Linux64 and Darwin/arm64
 cross-build:
 ifeq ($(GOARCH),arm64)
     ifeq ($(GOOS),linux)
-		CGO_ENABLED=1 CC=aarch64-linux-musl-gcc CXX=aarch64-linux-musl-g++ CGO_LDFLAGS="-static" TAGS=musl make cli-builder
+		CGO_ENABLED=1 CC=aarch64-linux-musl-gcc CXX=aarch64-linux-musl-g++ CGO_LDFLAGS="-static" TAGS=musl gmake cli-builder
     else # build for darwin/arm64
-		CGO_ENABLED=1 make cli-builder
+		CGO_ENABLED=1 gmake cli-builder
     endif
 else # build for amd64 arch
     ifeq ($(GOOS),windows)
-		CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CGO_LDFLAGS="-static" make cli-builder
+		CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CGO_LDFLAGS="-static" gmake cli-builder
     else ifeq ($(GOOS),linux) 
-		CGO_ENABLED=1 CC=x86_64-linux-musl-gcc CXX=x86_64-linux-musl-g++ CGO_LDFLAGS="-static" TAGS=musl make cli-builder
+		CGO_ENABLED=1 CC=x86_64-linux-musl-gcc CXX=x86_64-linux-musl-g++ CGO_LDFLAGS="-static" TAGS=musl gmake cli-builder
     else # build for Darwin/amd64
-		CGO_ENABLED=1 make cli-builder
+		CGO_ENABLED=1 gmake cli-builder
     endif
 endif
 
@@ -122,8 +122,8 @@ fmt:
 
 .PHONY: lint
 lint:
-	make lint-go
-	make lint-cli
+	gmake lint-go
+	gmake lint-cli
 
 .PHONY: lint-go
 lint-go:
